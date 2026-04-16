@@ -163,17 +163,29 @@ public class WindChargeCounterMod implements ClientModInitializer {
                     if (tracker == null) return null;
                     if (!player.isAlive()) return null;
 
-                    // bu oyuncu kaç tane kullanmış
-                    int used = tracker.getWindChargesUsed(player.getUuid());
-                    if (used <= 0) return null;
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client == null || client.player == null) return null;
 
-                    int remaining = WindChargeTracker.MAX_WIND_CHARGES - used;
+                    boolean isSelf = player.getUuid().equals(client.player.getUuid());
+                    int remaining;
 
-                    // Build suffix exactly like TotemCounter does
+                    if (isSelf) {
+                        // kendimiz: envanterden direkt say
+                        remaining = tracker.getLocalPlayerCharges();
+                        if (remaining <= 0) return null;
+                    } else {
+                        // rakip: mixin'den gelen kullanım verisine bak
+                        int used = tracker.getWindChargesUsed(player.getUuid());
+                        if (used <= 0) return null;
+                        remaining = WindChargeTracker.MAX_WIND_CHARGES - used;
+                    }
+
+                    // suffix oluştur
                     MutableText suffix = Text.empty().append(" ");
                     suffix.append(Text.literal("| ").styled(s -> s.withColor(net.minecraft.util.Formatting.GRAY)));
 
-                    MutableText counter = Text.literal("\u2B21" + remaining + "/" + WindChargeTracker.MAX_WIND_CHARGES);
+                    String display = isSelf ? ("\u2B21" + remaining) : ("\u2B21" + remaining + "/" + WindChargeTracker.MAX_WIND_CHARGES);
+                    MutableText counter = Text.literal(display);
                     float ratio = (float) remaining / WindChargeTracker.MAX_WIND_CHARGES;
                     int color;
                     if (ratio > 0.75f) color = 0x55DDFF;
@@ -186,7 +198,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
 
                     return suffix;
                 } catch (Exception e) {
-                    LOGGER.error("[WindChargeCounter] Error rendering nametag suffix", e);
+                    LOGGER.error("[WindChargeCounter] nametag suffix hatasi", e);
                     return null;
                 }
             });
