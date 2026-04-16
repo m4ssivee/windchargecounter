@@ -11,7 +11,7 @@ import net.minecraft.item.ItemStack;
 import java.util.*;
 
 public class WindChargeTracker {
-    // Duel reset state tracking
+    // duel arası reset için
     private boolean wasPlayerDead = false;
     private UUID lastWorldId = null;
     public static final int MAX_WIND_CHARGES = 128;
@@ -20,7 +20,7 @@ public class WindChargeTracker {
     private final Set<Integer> processedEntities = new HashSet<>();
     private int localPlayerCount = 0;
     private int previousLocalPlayerCount = 0;
-    private static final int REFILL_JUMP_THRESHOLD = 20; // If count jumps by 20+ in one tick, it's a new round
+    private static final int REFILL_JUMP_THRESHOLD = 20; // artık kullanılmıyor ama bıraktım
 
     public void updateLocalPlayerCount(PlayerEntity player) {
         int count = 0;
@@ -31,8 +31,7 @@ public class WindChargeTracker {
             }
         }
 
-        // Detect round reset: if wind charges reach max (128) from any lower count,
-        // the server refilled inventory for a new round
+        // envanter 128'e geri dolduysa yeni raunt başlamış demektir
         if (previousLocalPlayerCount > 0 && previousLocalPlayerCount < MAX_WIND_CHARGES && count == MAX_WIND_CHARGES) {
             WindChargeCounterMod.LOGGER.info("[WCC] Wind charge refill detected ({} -> {}), auto-resetting counters for new round!", previousLocalPlayerCount, count);
             clearAll();
@@ -43,20 +42,19 @@ public class WindChargeTracker {
     }
 
     /**
-     * Check for death/respawn to auto-reset counters after a duel ends.
-     * @param enabled whether auto-reset is enabled in config
+     * ölüm/respawn ve dünya değişikliği kontrolü
      */
     public void checkDuelReset(PlayerEntity localPlayer, ClientWorld world, boolean enabled) {
         if (localPlayer == null) return;
 
-        // Detect world/server change → reset (always, regardless of toggle)
+        // dünya değiştiyse her türlü sıfırla
         UUID currentWorldId = null;
         if (world != null) {
             try {
                 currentWorldId = UUID.nameUUIDFromBytes(
                     world.getRegistryKey().getValue().toString().getBytes());
             } catch (Exception e) {
-                // fallback: use hashCode
+                // olmazsa hashCode ile idare et
                 currentWorldId = new UUID(0, world.hashCode());
             }
         }
@@ -67,7 +65,7 @@ public class WindChargeTracker {
         }
         lastWorldId = currentWorldId;
 
-        // Detect death → respawn cycle for local player (only reset if enabled)
+        // oyuncu öldüyse respawn'da sıfırla
         boolean isDead = localPlayer.isDead() || localPlayer.getHealth() <= 0;
 
         if (isDead && !wasPlayerDead) {
@@ -83,7 +81,7 @@ public class WindChargeTracker {
             }
         }
         
-        // Also clear individual opponent counters if they die
+        // rakipler öldüyse onların sayacını da temizle
         if (enabled && world != null) {
             for (net.minecraft.client.network.AbstractClientPlayerEntity player : world.getPlayers()) {
                 if (player != localPlayer && (player.isDead() || player.getHealth() <= 0)) {
@@ -113,7 +111,7 @@ public class WindChargeTracker {
                             owner = projectile.getOwner();
                         }
 
-                        // If owner is null (PvP servers hide this), find closest player that is NOT us
+                        // pvp sunucuları owner'ı gizliyor, kendimiz hariç en yakın oyuncuyu bul
                         if (owner == null) {
                             double closestDist = Double.MAX_VALUE;
                             PlayerEntity closestPlayer = null;
@@ -128,7 +126,7 @@ public class WindChargeTracker {
                             owner = closestPlayer;
                         }
 
-                        // Record usage only for opponents
+                        // sadece rakipleri say
                         if (owner instanceof PlayerEntity player && !player.getUuid().equals(localUuid)) {
                             recordWindChargeUse(player);
                         }
@@ -154,6 +152,10 @@ public class WindChargeTracker {
 
     public boolean hasOpponentUsed(UUID playerId) {
         return windChargesUsed.containsKey(playerId) && windChargesUsed.get(playerId) > 0;
+    }
+
+    public int getWindChargesUsed(UUID playerId) {
+        return windChargesUsed.getOrDefault(playerId, 0);
     }
 
     public int getLocalPlayerCharges() {

@@ -73,7 +73,6 @@ public class WindChargeCounterMod implements ClientModInitializer {
             if (client.player != null) {
                 tracker.updateLocalPlayerCount(client.player);
                 tracker.checkDuelReset(client.player, client.world, config.autoResetOnDeath);
-                tracker.tick(client.world);
             }
 
             if (config.hudX == -9999 || config.hudY == -9999) {
@@ -85,7 +84,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
             }
 
             if (toggleEditModeKey != null && toggleEditModeKey.wasPressed()) {
-                // Use hud.isEditMode() as single source of truth
+                // edit moduna gir/çık
                 if (!hud.isEditMode()) {
                     MinecraftClient.getInstance().setScreen(new EditModeScreen());
                 } else {
@@ -159,36 +158,32 @@ public class WindChargeCounterMod implements ClientModInitializer {
         try {
             nametagRenderer.registerModSuffix("windchargecounter", (player) -> {
                 try {
-                    if (player == null || !player.isAlive()) return null;
+                    if (player == null) return null;
                     if (!config.showInNametags) return null;
+                    if (tracker == null) return null;
+                    if (!player.isAlive()) return null;
 
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client == null || client.player == null) return null;
+                    // bu oyuncu kaç tane kullanmış
+                    int used = tracker.getWindChargesUsed(player.getUuid());
+                    if (used <= 0) return null;
 
-                    boolean isSelf = player.getUuid().equals(client.player.getUuid());
+                    int remaining = WindChargeTracker.MAX_WIND_CHARGES - used;
 
-                    // Kendi nametag'imizde gösterme (showSelf false ise)
-                    if (isSelf && !config.showSelf) return null;
+                    // Build suffix exactly like TotemCounter does
+                    MutableText suffix = Text.empty().append(" ");
+                    suffix.append(Text.literal("| ").styled(s -> s.withColor(net.minecraft.util.Formatting.GRAY)));
 
-                    int remaining;
-                    if (isSelf) {
-                        remaining = tracker.getLocalPlayerCharges();
-                        // Envanterde wind charge yoksa kendi nametag'ımızda gösterme
-                        if (remaining <= 0) return null;
-                    } else {
-                        // Rakip hiç wind charge kullanmadıysa gösterme
-                        if (!tracker.hasOpponentUsed(player.getUuid())) return null;
-                        remaining = tracker.getOpponentRemainingCharges(player.getUuid());
-                    }
+                    MutableText counter = Text.literal("\u2B21" + remaining + "/" + WindChargeTracker.MAX_WIND_CHARGES);
+                    float ratio = (float) remaining / WindChargeTracker.MAX_WIND_CHARGES;
+                    int color;
+                    if (ratio > 0.75f) color = 0x55DDFF;
+                    else if (ratio > 0.5f) color = 0x00CED1;
+                    else if (ratio > 0.25f) color = 0xFFFF55;
+                    else color = 0xFF5555;
+                    TextColor textColor = TextColor.fromRgb(color);
+                    counter.setStyle(counter.getStyle().withColor(textColor));
+                    suffix.append(counter);
 
-                    MutableText suffix = Text.literal("");
-                    suffix.append(Text.literal(" | ").styled(s -> s.withColor(net.minecraft.util.Formatting.GRAY)));
-                    suffix.append(Text.literal("\u2B21").styled(s -> s.withColor(net.minecraft.util.Formatting.AQUA)));
-                    
-                    int color = WindChargeHud.getChargeColor(remaining);
-                    String maxDisplay = isSelf ? "" : "/" + WindChargeTracker.MAX_WIND_CHARGES;
-                    String countStr = remaining + maxDisplay;
-                    suffix.append(Text.literal(countStr).styled(s -> s.withColor(TextColor.fromRgb(color & 0x00FFFFFF))));
                     return suffix;
                 } catch (Exception e) {
                     LOGGER.error("[WindChargeCounter] Error rendering nametag suffix", e);
