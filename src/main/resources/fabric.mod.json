@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "windchargecounter",
+  "version": "1.0.0",
+  "name": "WindChargeCounter",
+  "description": "Wind Charge counter for Mace PVP - tracks remaining wind charges",
+  "authors": ["m4ssivee"],
+  "contact": {
+    "homepage": "https://github.com/m4ssivee/windchargecounter",
+    "sources": "https://github.com/m4ssivee/windchargecounter"
+  },
+  "license": "MIT",
+  "icon": "assets/windchargecounter/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.m4ssive.windchargecounter.WindChargeCounterMod"],
+    "modmenu": ["com.m4ssive.windchargecounter.ModMenuIntegration"]
+  },
+  "mixins": ["windchargecounter.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.5",
+    "fabric-api": "*",
+    "minecraft": ">=1.21",
+    "java": "*",
+    "m4lib": ">=1.0.0"
+  },
+  "recommends": {
+    "modmenu": ">=11.0.0"
+  },
+  "custom": {
+    "modmenu": {
+      "badges": ["client"]
+    }
+  }
+}
