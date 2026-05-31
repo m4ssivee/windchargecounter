@@ -106,6 +106,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
             
             M4Lib m4Lib = M4Lib.getInstance();
             if (m4Lib == null) {
+                LOGGER.warn("[WindChargeCounter] m4lib not found on first attempt. Will retry...");
                 if (!m4LibRetryRegistered) {
                     m4LibRetryRegistered = true;
                     ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -115,10 +116,15 @@ public class WindChargeCounterMod implements ClientModInitializer {
                                 if (lib != null) {
                                     NametagRenderer renderer = lib.getNametagRenderer();
                                     if (renderer != null) {
+                                        LOGGER.info("[WindChargeCounter] m4lib found on retry, registering nametag suffix...");
                                         doRegisterNametagSuffix(renderer);
+                                    } else {
+                                        LOGGER.debug("[WindChargeCounter] m4lib found but NametagRenderer not ready yet...");
                                     }
                                 }
-                            } catch (Exception e) {}
+                            } catch (Exception e) {
+                                LOGGER.error("[WindChargeCounter] Error during retry registration", e);
+                            }
                         }
                     });
                 }
@@ -127,6 +133,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
             
             NametagRenderer nametagRenderer = m4Lib.getNametagRenderer();
             if (nametagRenderer == null) {
+                LOGGER.warn("[WindChargeCounter] m4lib found but NametagRenderer not available. Will retry...");
                 if (!m4LibRetryRegistered) {
                     m4LibRetryRegistered = true;
                     ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -136,10 +143,15 @@ public class WindChargeCounterMod implements ClientModInitializer {
                                 if (lib != null) {
                                     NametagRenderer renderer = lib.getNametagRenderer();
                                     if (renderer != null) {
+                                        LOGGER.info("[WindChargeCounter] NametagRenderer ready on retry, registering nametag suffix...");
                                         doRegisterNametagSuffix(renderer);
+                                    } else {
+                                        LOGGER.debug("[WindChargeCounter] NametagRenderer still not ready...");
                                     }
                                 }
-                            } catch (Exception e) {}
+                            } catch (Exception e) {
+                                LOGGER.error("[WindChargeCounter] Error during retry registration", e);
+                            }
                         }
                     });
                 }
@@ -148,64 +160,79 @@ public class WindChargeCounterMod implements ClientModInitializer {
             
             doRegisterNametagSuffix(nametagRenderer);
         } catch (Exception e) {
-            LOGGER.error("Error registering nametag suffix", e);
+            LOGGER.error("[WindChargeCounter] ✗ Error registering nametag suffix with m4lib", e);
         }
     }
 
     private void doRegisterNametagSuffix(NametagRenderer nametagRenderer) {
-        if (m4LibRegistered || nametagRenderer == null) return;
-
+        if (m4LibRegistered) {
+            LOGGER.debug("[WindChargeCounter] Nametag suffix already registered, skipping...");
+            return;
+        }
+        
+        if (nametagRenderer == null) {
+            LOGGER.error("[WindChargeCounter] Cannot register nametag suffix: NametagRenderer is null!");
+            return;
+        }
+        
         try {
             nametagRenderer.registerModSuffix("windchargecounter", (player) -> {
                 try {
                     if (player == null) return null;
-                    if (!config.showInNametags) return null;
+                    
+                    ModConfig config = getConfig();
+                    if (config == null || !config.showInNametags) return null;
+                    
                     if (tracker == null) return null;
-                    if (!player.isAlive()) return null;
+                    
+                    if (!player.isAlive()) {
+                        tracker.clearPlayer(player.getUuid());
+                        return null;
+                    }
 
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client == null || client.player == null) return null;
-
-                    boolean isSelf = player.getUuid().equals(client.player.getUuid());
+                    
                     int remaining;
+                    boolean isSelf = player.getUuid().equals(client.player.getUuid());
 
                     if (isSelf) {
-                        // kendimiz: envanterden direkt say
                         remaining = tracker.getLocalPlayerCharges();
                         if (remaining <= 0) return null;
                     } else {
-                        // rakip: mixin'den gelen kullanım verisine bak
                         int used = tracker.getWindChargesUsed(player.getUuid());
-                        if (used <= 0) return null;
                         remaining = WindChargeTracker.MAX_WIND_CHARGES - used;
                     }
-
-                    // suffix oluştur
+                    
                     MutableText suffix = Text.empty().append(" ");
                     suffix.append(Text.literal("| ").styled(s -> s.withColor(net.minecraft.util.Formatting.GRAY)));
-
-                    String display = isSelf ? ("\u2B21" + remaining) : ("\u2B21" + remaining + "/" + WindChargeTracker.MAX_WIND_CHARGES);
-                    MutableText counter = Text.literal(display);
+                    
+                    String displayStr = "\u2B21 " + remaining;
+                    MutableText counter = Text.literal(displayStr);
+                    
                     float ratio = (float) remaining / WindChargeTracker.MAX_WIND_CHARGES;
                     int color;
                     if (ratio > 0.75f) color = 0x55DDFF;
                     else if (ratio > 0.5f) color = 0x00CED1;
                     else if (ratio > 0.25f) color = 0xFFFF55;
                     else color = 0xFF5555;
-                    TextColor textColor = TextColor.fromRgb(color);
-                    counter.setStyle(counter.getStyle().withColor(textColor));
+                    
+                    counter.setStyle(counter.getStyle().withColor(TextColor.fromRgb(color)));
                     suffix.append(counter);
-
+                    
+                    LOGGER.debug("[WindChargeCounter] ✓ Returning nametag suffix for {}: '{}'", 
+                        player.getNameForScoreboard(), suffix.getString());
                     return suffix;
                 } catch (Exception e) {
-                    LOGGER.error("[WindChargeCounter] nametag suffix hatasi", e);
+                    LOGGER.error("[WindChargeCounter] ✗ Error creating nametag suffix", e);
                     return null;
                 }
             });
+            
             m4LibRegistered = true;
-            LOGGER.info("[WindChargeCounter] Nametag suffix registered with m4lib");
+            LOGGER.info("[WindChargeCounter] ✓✓✓ Nametag suffix provider registered successfully with m4lib");
         } catch (Exception e) {
-            LOGGER.error("Failed to register nametag suffix", e);
+            LOGGER.error("[WindChargeCounter] ✗✗✗ Failed to register nametag suffix with m4lib", e);
         }
     }
 

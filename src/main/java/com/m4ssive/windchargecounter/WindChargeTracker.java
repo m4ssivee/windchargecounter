@@ -17,7 +17,7 @@ public class WindChargeTracker {
     public static final int MAX_WIND_CHARGES = 128;
 
     private final Map<UUID, Integer> windChargesUsed = new HashMap<>();
-    private final Set<Integer> processedEntities = new HashSet<>();
+    private final Map<UUID, Long> lastWindChargeTime = new HashMap<>();
     private int localPlayerCount = 0;
     private int previousLocalPlayerCount = 0;
     private static final int REFILL_JUMP_THRESHOLD = 20; // artık kullanılmıyor ama bıraktım
@@ -91,57 +91,18 @@ public class WindChargeTracker {
         }
     }
 
-    public void tick(ClientWorld world) {
-        if (world == null) return;
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return;
-        UUID localUuid = client.player.getUuid();
-
-        Iterable<Entity> entities = world.getEntities();
-        for (Entity entity : entities) {
-            if (entity.getType() == net.minecraft.entity.EntityType.WIND_CHARGE || entity.getType() == net.minecraft.entity.EntityType.BREEZE_WIND_CHARGE) {
-                int entityId = entity.getId();
-                if (!processedEntities.contains(entityId)) {
-                    processedEntities.add(entityId);
-
-                    try {
-                        Entity owner = null;
-                        if (entity instanceof ProjectileEntity projectile) {
-                            owner = projectile.getOwner();
-                        }
-
-                        // pvp sunucuları owner'ı gizliyor, kendimiz hariç en yakın oyuncuyu bul
-                        if (owner == null) {
-                            double closestDist = Double.MAX_VALUE;
-                            PlayerEntity closestPlayer = null;
-                            for (PlayerEntity p : world.getPlayers()) {
-                                if (p.getUuid().equals(localUuid)) continue; // SKIP SELF
-                                double dist = p.squaredDistanceTo(entity);
-                                if (dist < closestDist) {
-                                    closestDist = dist;
-                                    closestPlayer = p;
-                                }
-                            }
-                            owner = closestPlayer;
-                        }
-
-                        // sadece rakipleri say
-                        if (owner instanceof PlayerEntity player && !player.getUuid().equals(localUuid)) {
-                            recordWindChargeUse(player);
-                        }
-                    } catch (Exception ignored) {}
-                }
-            }
-        }
-
-        if (processedEntities.size() > 1000) {
-            processedEntities.clear();
-        }
-    }
+    // tick metodu tamamen silindi çünkü Mixin üzerinden çok daha tutarlı takip ediyoruz ve burada çifte sayma (çakışma) oluşuyordu.
 
     public void recordWindChargeUse(PlayerEntity player) {
         UUID id = player.getUuid();
+        
+        long currentTime = System.currentTimeMillis();
+        if (lastWindChargeTime.containsKey(id) && (currentTime - lastWindChargeTime.get(id)) < 500) {
+            // Anti-double count: prevent multiple usages from the same player within 500ms
+            return;
+        }
+        lastWindChargeTime.put(id, currentTime);
+
         int used = windChargesUsed.getOrDefault(id, 0) + 1;
         windChargesUsed.put(id, Math.min(used, MAX_WIND_CHARGES));
     }
@@ -177,7 +138,7 @@ public class WindChargeTracker {
 
     public void clearAll() {
         windChargesUsed.clear();
-        processedEntities.clear();
+        lastWindChargeTime.clear();
         localPlayerCount = 0;
     }
 }
