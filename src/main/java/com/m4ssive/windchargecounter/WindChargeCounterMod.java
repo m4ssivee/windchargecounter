@@ -1,23 +1,24 @@
 package com.m4ssive.windchargecounter;
 
+import com.m4ssive.m4lib.M4Lib;
+import com.m4ssive.m4lib.NametagRenderer;
 import com.m4ssive.windchargecounter.config.ModConfig;
 import com.m4ssive.windchargecounter.gui.EditModeScreen;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
-import com.m4ssive.m4lib.M4Lib;
-import com.m4ssive.m4lib.NametagRenderer;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
+import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,13 +29,13 @@ public class WindChargeCounterMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_NAME);
 
     private static WindChargeCounterMod instance;
+    private static KeyBinding toggleEditModeKey;
+
     private ModConfig config;
     private WindChargeTracker tracker;
     private WindChargeHud hud;
 
-    private static KeyBinding toggleEditModeKey;
     private boolean m4LibRegistered = false;
-    private boolean m4LibRetryRegistered = false;
 
     @Override
     public void onInitializeClient() {
@@ -46,53 +47,40 @@ public class WindChargeCounterMod implements ClientModInitializer {
         tracker = new WindChargeTracker();
         hud = new WindChargeHud(tracker, config);
 
-        registerNametagSuffix();
+        toggleEditModeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.windchargecounter.toggleedit", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.windchargecounter"));
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommandManager.literal("wcc")
                 .then(ClientCommandManager.literal("reset").executes(context -> {
-                    if (tracker != null) {
-                        tracker.clearAll();
-                        context.getSource().sendFeedback(Text.literal("\u00a7a[WCC] Counters reset for the new round!"));
-                    }
+                    tracker.clearAll();
+                    context.getSource().sendFeedback(Text.literal("[WCC] Counters reset for the new round!").formatted(Formatting.GREEN));
                     return 1;
                 }))
-            );
-        });
+            )
+        );
 
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.currentScreen == null) {
-                hud.render(context, tickCounter.getTickDelta(false));
+            if (client.currentScreen == null && !client.options.hudHidden) {
+                hud.render(context);
             }
         });
 
-        registerKeybinds();
+        // m4lib kendi entrypoint'ini bizden sonra çalıştırabilir; hazır olana kadar her tick dene
+        tryRegisterNametagSuffix();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (!m4LibRegistered) tryRegisterNametagSuffix();
+
             if (client.player != null) {
-                tracker.updateLocalPlayerCount(client.player);
                 tracker.checkDuelReset(client.player, client.world, config.autoResetOnDeath);
+                tracker.updateLocalPlayerCount(client.player);
             }
 
-            if (config.hudX == -9999 || config.hudY == -9999) {
-                if (client.getWindow() != null && client.getWindow().getScaledWidth() > 0) {
-                    config.hudX = client.getWindow().getScaledWidth() - 160;
-                    config.hudY = 10;
-                    config.save();
-                }
-            }
-
-            if (toggleEditModeKey != null && toggleEditModeKey.wasPressed()) {
-                // edit moduna gir/çık
-                if (!hud.isEditMode()) {
-                    MinecraftClient.getInstance().setScreen(new EditModeScreen());
-                } else {
-                    hud.setEditMode(false);
-                    if (MinecraftClient.getInstance().currentScreen instanceof EditModeScreen) {
-                        MinecraftClient.getInstance().setScreen(null);
-                    }
-                    config.save();
+            while (toggleEditModeKey.wasPressed()) {
+                if (client.currentScreen == null) {
+                    client.setScreen(new EditModeScreen());
                 }
             }
         });
@@ -100,163 +88,46 @@ public class WindChargeCounterMod implements ClientModInitializer {
         LOGGER.info("WindChargeCounter loaded!");
     }
 
-    private void registerNametagSuffix() {
+    private void tryRegisterNametagSuffix() {
         try {
-            LOGGER.info("[WindChargeCounter] Registering nametag suffix provider with m4lib...");
-            
-            M4Lib m4Lib = M4Lib.getInstance();
-            if (m4Lib == null) {
-                LOGGER.warn("[WindChargeCounter] m4lib not found on first attempt. Will retry...");
-                if (!m4LibRetryRegistered) {
-                    m4LibRetryRegistered = true;
-                    ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                        if (!m4LibRegistered) {
-                            try {
-                                M4Lib lib = M4Lib.getInstance();
-                                if (lib != null) {
-                                    NametagRenderer renderer = lib.getNametagRenderer();
-                                    if (renderer != null) {
-                                        LOGGER.info("[WindChargeCounter] m4lib found on retry, registering nametag suffix...");
-                                        doRegisterNametagSuffix(renderer);
-                                    } else {
-                                        LOGGER.debug("[WindChargeCounter] m4lib found but NametagRenderer not ready yet...");
-                                    }
-                                }
-                            } catch (Exception e) {
-                                LOGGER.error("[WindChargeCounter] Error during retry registration", e);
-                            }
-                        }
-                    });
-                }
-                return;
-            }
-            
-            NametagRenderer nametagRenderer = m4Lib.getNametagRenderer();
-            if (nametagRenderer == null) {
-                LOGGER.warn("[WindChargeCounter] m4lib found but NametagRenderer not available. Will retry...");
-                if (!m4LibRetryRegistered) {
-                    m4LibRetryRegistered = true;
-                    ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                        if (!m4LibRegistered) {
-                            try {
-                                M4Lib lib = M4Lib.getInstance();
-                                if (lib != null) {
-                                    NametagRenderer renderer = lib.getNametagRenderer();
-                                    if (renderer != null) {
-                                        LOGGER.info("[WindChargeCounter] NametagRenderer ready on retry, registering nametag suffix...");
-                                        doRegisterNametagSuffix(renderer);
-                                    } else {
-                                        LOGGER.debug("[WindChargeCounter] NametagRenderer still not ready...");
-                                    }
-                                }
-                            } catch (Exception e) {
-                                LOGGER.error("[WindChargeCounter] Error during retry registration", e);
-                            }
-                        }
-                    });
-                }
-                return;
-            }
-            
-            doRegisterNametagSuffix(nametagRenderer);
-        } catch (Exception e) {
-            LOGGER.error("[WindChargeCounter] ✗ Error registering nametag suffix with m4lib", e);
-        }
-    }
+            M4Lib lib = M4Lib.getInstance();
+            if (lib == null) return;
+            NametagRenderer renderer = lib.getNametagRenderer();
+            if (renderer == null) return;
 
-    private void doRegisterNametagSuffix(NametagRenderer nametagRenderer) {
-        if (m4LibRegistered) {
-            LOGGER.debug("[WindChargeCounter] Nametag suffix already registered, skipping...");
-            return;
-        }
-        
-        if (nametagRenderer == null) {
-            LOGGER.error("[WindChargeCounter] Cannot register nametag suffix: NametagRenderer is null!");
-            return;
-        }
-        
-        try {
-            nametagRenderer.registerModSuffix("windchargecounter", (player) -> {
-                try {
-                    if (player == null) return null;
-                    
-                    ModConfig config = getConfig();
-                    if (config == null || !config.showInNametags) return null;
-                    
-                    if (tracker == null) return null;
-                    
-                    if (!player.isAlive()) {
-                        tracker.clearPlayer(player.getUuid());
-                        return null;
-                    }
-
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client == null || client.player == null) return null;
-                    
-                    int remaining;
-                    boolean isSelf = player.getUuid().equals(client.player.getUuid());
-
-                    if (isSelf) {
-                        remaining = tracker.getLocalPlayerCharges();
-                        if (remaining <= 0) return null;
-                    } else {
-                        int used = tracker.getWindChargesUsed(player.getUuid());
-                        remaining = WindChargeTracker.MAX_WIND_CHARGES - used;
-                    }
-                    
-                    MutableText suffix = Text.empty().append(" ");
-                    suffix.append(Text.literal("| ").styled(s -> s.withColor(net.minecraft.util.Formatting.GRAY)));
-                    
-                    String displayStr = "\u2B21 " + remaining;
-                    MutableText counter = Text.literal(displayStr);
-                    
-                    float ratio = (float) remaining / WindChargeTracker.MAX_WIND_CHARGES;
-                    int color;
-                    if (ratio > 0.75f) color = 0x55DDFF;
-                    else if (ratio > 0.5f) color = 0x00CED1;
-                    else if (ratio > 0.25f) color = 0xFFFF55;
-                    else color = 0xFF5555;
-                    
-                    counter.setStyle(counter.getStyle().withColor(TextColor.fromRgb(color)));
-                    suffix.append(counter);
-                    
-                    LOGGER.debug("[WindChargeCounter] ✓ Returning nametag suffix for {}: '{}'", 
-                        player.getNameForScoreboard(), suffix.getString());
-                    return suffix;
-                } catch (Exception e) {
-                    LOGGER.error("[WindChargeCounter] ✗ Error creating nametag suffix", e);
-                    return null;
-                }
-            });
-            
+            renderer.registerModSuffix(MOD_ID, this::buildNametagSuffix);
             m4LibRegistered = true;
-            LOGGER.info("[WindChargeCounter] ✓✓✓ Nametag suffix provider registered successfully with m4lib");
-        } catch (Exception e) {
-            LOGGER.error("[WindChargeCounter] ✗✗✗ Failed to register nametag suffix with m4lib", e);
-        }
-    }
-
-    private void registerKeybinds() {
-        try {
-            toggleEditModeKey = new KeyBinding("key.windchargecounter.toggleedit", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.windchargecounter");
-            KeyBindingHelper.registerKeyBinding(toggleEditModeKey);
+            LOGGER.info("[WCC] Nametag suffix registered with m4lib");
         } catch (Throwable t) {
-            try {
-                for (java.lang.reflect.Constructor<?> constructor : KeyBinding.class.getConstructors()) {
-                    Class<?>[] paramTypes = constructor.getParameterTypes();
-                    if (paramTypes.length == 3 && paramTypes[0] == String.class && paramTypes[2] == String.class) {
-                        toggleEditModeKey = (KeyBinding) constructor.newInstance("key.windchargecounter.toggleedit", GLFW.GLFW_KEY_K, "category.windchargecounter");
-                        KeyBindingHelper.registerKeyBinding(toggleEditModeKey);
-                        break;
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("Failed to register keybinds", e);
-            }
+            m4LibRegistered = true; // tekrar tekrar log basmasın
+            LOGGER.error("[WCC] Failed to register nametag suffix with m4lib", t);
         }
     }
 
+    private Text buildNametagSuffix(PlayerEntity player) {
+        try {
+            if (player == null || !config.showInNametags || !player.isAlive()) return null;
 
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.player == null) return null;
+
+            boolean isSelf = player.getUuid().equals(client.player.getUuid());
+            final int remaining = isSelf
+                ? tracker.getLocalPlayerCharges()
+                : tracker.getOpponentRemainingCharges(player.getUuid());
+            if (isSelf && remaining <= 0) return null;
+
+            MutableText suffix = Text.literal(" | ").formatted(Formatting.GRAY);
+            MutableText counter = Text.literal("⬡ " + remaining)
+                .styled(s -> s.withColor(TextColor.fromRgb(WindChargeHud.getChargeColor(remaining) & 0xFFFFFF)));
+            return suffix.append(counter);
+        } catch (Exception e) {
+            LOGGER.error("[WCC] Error creating nametag suffix", e);
+            return null;
+        }
+    }
+
+    public static KeyBinding getToggleEditModeKey() { return toggleEditModeKey; }
     public static WindChargeCounterMod getInstance() { return instance; }
     public ModConfig getConfig() { return config; }
     public WindChargeTracker getTracker() { return tracker; }

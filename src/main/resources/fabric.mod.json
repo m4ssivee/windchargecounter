@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "windchargecounter",
-  "version": "1.0.0",
+  "version": "${version}",
   "name": "WindChargeCounter",
   "description": "Wind Charge counter for Mace PVP - tracks remaining wind charges",
   "authors": ["m4ssivee"],
@@ -20,7 +20,7 @@
   "depends": {
     "fabricloader": ">=0.18.5",
     "fabric-api": "*",
-    "minecraft": ">=1.21",
+    "minecraft": ">=1.21 <1.21.2",
     "java": "*",
     "m4lib": ">=1.0.0"
   },

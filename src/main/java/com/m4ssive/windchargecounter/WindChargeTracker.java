@@ -1,26 +1,29 @@
 package com.m4ssive.windchargecounter;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.projectile.ProjectileEntity;
-import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 
 import java.util.*;
 
 public class WindChargeTracker {
-    // duel arası reset için
-    private boolean wasPlayerDead = false;
-    private UUID lastWorldId = null;
     public static final int MAX_WIND_CHARGES = 128;
 
+    // envanter tek tickte bu kadar artarsa ve 128'e ulaşırsa yeni raunt sayılır
+    private static final int REFILL_JUMP_THRESHOLD = 16;
+    // aynı mermi entity'si render mesafesinden çıkıp tekrar girerse ikinci kez sayılmasın
+    private static final int MAX_SEEN_PROJECTILES = 512;
+
     private final Map<UUID, Integer> windChargesUsed = new HashMap<>();
-    private final Map<UUID, Long> lastWindChargeTime = new HashMap<>();
+    private final Set<UUID> seenProjectiles = new LinkedHashSet<>();
+
     private int localPlayerCount = 0;
-    private int previousLocalPlayerCount = 0;
-    private static final int REFILL_JUMP_THRESHOLD = 20; // artık kullanılmıyor ama bıraktım
+    private boolean hasLocalSample = false;
+
+    private boolean wasPlayerDead = false;
+    private ClientWorld lastWorld = null;
 
     public void updateLocalPlayerCount(PlayerEntity player) {
         int count = 0;
@@ -31,78 +34,72 @@ public class WindChargeTracker {
             }
         }
 
-        // envanter 128'e geri dolduysa yeni raunt başlamış demektir
-        if (previousLocalPlayerCount > 0 && previousLocalPlayerCount < MAX_WIND_CHARGES && count == MAX_WIND_CHARGES) {
-            WindChargeCounterMod.LOGGER.info("[WCC] Wind charge refill detected ({} -> {}), auto-resetting counters for new round!", previousLocalPlayerCount, count);
+        // envanter 128'e geri dolduysa yeni raunt başlamış demektir (0'dan dolma dahil)
+        if (hasLocalSample
+                && count >= MAX_WIND_CHARGES
+                && localPlayerCount < MAX_WIND_CHARGES
+                && count - localPlayerCount >= REFILL_JUMP_THRESHOLD) {
+            WindChargeCounterMod.LOGGER.info("[WCC] Wind charge refill detected ({} -> {}), resetting counters for new round.", localPlayerCount, count);
             clearAll();
         }
 
-        previousLocalPlayerCount = localPlayerCount;
         localPlayerCount = count;
+        hasLocalSample = true;
     }
 
     /**
-     * ölüm/respawn ve dünya değişikliği kontrolü
+     * Dünya değişikliği, ölüm/respawn ve ölen rakipler için reset kontrolü.
      */
-    public void checkDuelReset(PlayerEntity localPlayer, ClientWorld world, boolean enabled) {
+    public void checkDuelReset(PlayerEntity localPlayer, ClientWorld world, boolean resetOnDeath) {
         if (localPlayer == null) return;
 
-        // dünya değiştiyse her türlü sıfırla
-        UUID currentWorldId = null;
-        if (world != null) {
-            try {
-                currentWorldId = UUID.nameUUIDFromBytes(
-                    world.getRegistryKey().getValue().toString().getBytes());
-            } catch (Exception e) {
-                // olmazsa hashCode ile idare et
-                currentWorldId = new UUID(0, world.hashCode());
+        // yeni sunucu / yeni dünya / boyut değişimi -> her zaman yeni bir ClientWorld örneği oluşur
+        if (world != lastWorld) {
+            if (lastWorld != null) {
+                WindChargeCounterMod.LOGGER.info("[WCC] World changed, resetting counters.");
             }
-        }
-        if (lastWorldId != null && currentWorldId != null && !lastWorldId.equals(currentWorldId)) {
-            WindChargeCounterMod.LOGGER.info("[WCC] World changed, resetting counters.");
             clearAll();
             wasPlayerDead = false;
+            lastWorld = world;
         }
-        lastWorldId = currentWorldId;
 
-        // oyuncu öldüyse respawn'da sıfırla
-        boolean isDead = localPlayer.isDead() || localPlayer.getHealth() <= 0;
-
+        boolean isDead = localPlayer.isDead();
         if (isDead && !wasPlayerDead) {
             wasPlayerDead = true;
-            if (enabled) {
-                WindChargeCounterMod.LOGGER.info("[WCC] Player died, counters will reset on respawn.");
-            }
         } else if (!isDead && wasPlayerDead) {
             wasPlayerDead = false;
-            if (enabled) {
+            if (resetOnDeath) {
                 clearAll();
-                WindChargeCounterMod.LOGGER.info("[WCC] Player respawned, counters reset for new duel!");
+                WindChargeCounterMod.LOGGER.info("[WCC] Player respawned, counters reset.");
             }
         }
-        
-        // rakipler öldüyse onların sayacını da temizle
-        if (enabled && world != null) {
-            for (net.minecraft.client.network.AbstractClientPlayerEntity player : world.getPlayers()) {
-                if (player != localPlayer && (player.isDead() || player.getHealth() <= 0)) {
+
+        // ölen rakiplerin sayacını temizle
+        if (resetOnDeath && world != null && !windChargesUsed.isEmpty()) {
+            for (AbstractClientPlayerEntity player : world.getPlayers()) {
+                if (player != localPlayer && player.isDead()) {
                     clearPlayer(player.getUuid());
                 }
             }
         }
     }
 
-    // tick metodu tamamen silindi çünkü Mixin üzerinden çok daha tutarlı takip ediyoruz ve burada çifte sayma (çakışma) oluşuyordu.
-
-    public void recordWindChargeUse(PlayerEntity player) {
-        UUID id = player.getUuid();
-        
-        long currentTime = System.currentTimeMillis();
-        if (lastWindChargeTime.containsKey(id) && (currentTime - lastWindChargeTime.get(id)) < 500) {
-            // Anti-double count: prevent multiple usages from the same player within 500ms
-            return;
+    /**
+     * Bir rakibin attığı wind charge'ı kaydeder.
+     *
+     * @param projectileUuid mermi entity'sinin UUID'si; aynı mermi iki kez sayılmaz
+     */
+    public void recordWindChargeUse(PlayerEntity player, UUID projectileUuid) {
+        if (projectileUuid != null) {
+            if (!seenProjectiles.add(projectileUuid)) return;
+            if (seenProjectiles.size() > MAX_SEEN_PROJECTILES) {
+                Iterator<UUID> it = seenProjectiles.iterator();
+                it.next();
+                it.remove();
+            }
         }
-        lastWindChargeTime.put(id, currentTime);
 
+        UUID id = player.getUuid();
         int used = windChargesUsed.getOrDefault(id, 0) + 1;
         windChargesUsed.put(id, Math.min(used, MAX_WIND_CHARGES));
     }
@@ -111,8 +108,8 @@ public class WindChargeTracker {
         return localPlayerCount > 0;
     }
 
-    public boolean hasOpponentUsed(UUID playerId) {
-        return windChargesUsed.containsKey(playerId) && windChargesUsed.get(playerId) > 0;
+    public boolean hasTrackedOpponents() {
+        return !windChargesUsed.isEmpty();
     }
 
     public int getWindChargesUsed(UUID playerId) {
@@ -124,8 +121,7 @@ public class WindChargeTracker {
     }
 
     public int getOpponentRemainingCharges(UUID playerId) {
-        int used = windChargesUsed.getOrDefault(playerId, 0);
-        return MAX_WIND_CHARGES - used;
+        return MAX_WIND_CHARGES - getWindChargesUsed(playerId);
     }
 
     public Map<UUID, Integer> getAllOpponentUsage() {
@@ -136,9 +132,9 @@ public class WindChargeTracker {
         windChargesUsed.remove(playerId);
     }
 
+    /** Rakip sayaçlarını sıfırlar. Kendi sayımız envanterden okunduğu için dokunulmaz. */
     public void clearAll() {
         windChargesUsed.clear();
-        lastWindChargeTime.clear();
-        localPlayerCount = 0;
+        seenProjectiles.clear();
     }
 }

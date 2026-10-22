@@ -1,30 +1,34 @@
 package com.m4ssive.windchargecounter.gui;
 
-import com.m4ssive.windchargecounter.WindChargeCounterMod;
 import com.m4ssive.windchargecounter.WindChargeTracker;
 import com.m4ssive.windchargecounter.config.ModConfig;
-import com.m4ssive.windchargecounter.util.GuiHelper;
-import com.m4ssive.windchargecounter.util.TextHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.text.Text;
 
 import java.util.*;
 
 public class WindChargeHud {
+    private static final ItemStack WIND_CHARGE_STACK = new ItemStack(Items.WIND_CHARGE);
+    private static final int DEFAULT_RIGHT_MARGIN = 160;
+
+    private static final int PADDING = 2;
+    private static final int LINE_HEIGHT = 16;
+    private static final int ICON_SIZE = 16;
+    private static final int ICON_PADDING = 2;
+
     private final WindChargeTracker tracker;
     private final ModConfig config;
-    private static final ItemStack WIND_CHARGE_STACK = new ItemStack(Items.WIND_CHARGE);
 
     private boolean editMode = false;
     private boolean isDragging = false;
-    private int dragStartX = 0;
-    private int dragStartY = 0;
+    private int dragOffsetX = 0;
+    private int dragOffsetY = 0;
 
+    // son çizilen HUD'un ekran koordinatlarındaki (ölçek uygulanmış) kutusu
     private int lastHudX, lastHudY, lastHudWidth, lastHudHeight;
 
     public WindChargeHud(WindChargeTracker tracker, ModConfig config) {
@@ -34,170 +38,130 @@ public class WindChargeHud {
 
     public void setEditMode(boolean editMode) {
         this.editMode = editMode;
-        if (!editMode) {
-            isDragging = false;
-        }
+        if (!editMode) isDragging = false;
     }
 
-    public void render(DrawContext context, float tickDelta) {
+    public void render(DrawContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) return;
         if (!config.enableHud && !editMode) return;
-        if (!tracker.hasWindCharge() && !editMode) return;
+        // ne bizde charge var ne de takip edilen rakip -> PvP dışındayız, gizle
+        if (!editMode && !tracker.hasWindCharge() && !tracker.hasTrackedOpponents()) return;
 
         List<PlayerInfo> players = new ArrayList<>();
 
-        if (config.showSelf) {
-            int myCharges = tracker.getLocalPlayerCharges();
-            players.add(new PlayerInfo("You", myCharges, client.player.getUuid()));
+        if (config.showSelf && (tracker.hasWindCharge() || editMode)) {
+            players.add(new PlayerInfo("You", tracker.getLocalPlayerCharges(), true));
         }
 
-        Map<UUID, Integer> opponentUsage = tracker.getAllOpponentUsage();
-        for (Map.Entry<UUID, Integer> entry : opponentUsage.entrySet()) {
+        for (Map.Entry<UUID, Integer> entry : tracker.getAllOpponentUsage().entrySet()) {
             PlayerEntity player = client.world.getPlayerByUuid(entry.getKey());
             if (player == null) continue;
             int remaining = WindChargeTracker.MAX_WIND_CHARGES - entry.getValue();
-            players.add(new PlayerInfo(player.getName().getString(), remaining, player.getUuid()));
+            players.add(new PlayerInfo(player.getName().getString(), remaining, false));
         }
 
         if (editMode && players.isEmpty()) {
-            players.add(new PlayerInfo("You", 120, UUID.randomUUID()));
-            players.add(new PlayerInfo("Enemy", 95, UUID.randomUUID()));
+            players.add(new PlayerInfo("You", 120, true));
+            players.add(new PlayerInfo("Enemy", 95, false));
         }
-
         if (players.isEmpty()) return;
 
-        renderHud(context, client, players);
+        ensurePosition(client);
+        renderHud(context, client.textRenderer, players);
 
-        if (editMode) {
-            renderEditOverlay(context, client);
+        if (editMode) renderEditOverlay(context);
+    }
+
+    private void ensurePosition(MinecraftClient client) {
+        if (config.hudX == ModConfig.UNSET || config.hudY == ModConfig.UNSET) {
+            config.hudX = Math.max(0, client.getWindow().getScaledWidth() - DEFAULT_RIGHT_MARGIN);
+            config.hudY = 10;
         }
     }
 
-    private void renderHud(DrawContext context, MinecraftClient client, List<PlayerInfo> players) {
-        TextRenderer textRenderer = client.textRenderer;
+    private static String chargeText(PlayerInfo p) {
+        return p.self ? String.valueOf(p.charges) : p.charges + "/" + WindChargeTracker.MAX_WIND_CHARGES;
+    }
 
-        int hudX = config.hudX > -9999 ? config.hudX : client.getWindow().getScaledWidth() - 160;
-        int hudY = config.hudY > -9999 ? config.hudY : 10;
-
-        GuiHelper.push(context);
-        GuiHelper.scale(context, config.scale, config.scale, 1.0f);
-
-        int scaledX = (int) (hudX / config.scale);
-        int scaledY = (int) (hudY / config.scale);
-
-        int padding = 2;
-        int lineHeight = 16;
-        int iconSize = 16;
-        int iconPadding = 2;
+    private void renderHud(DrawContext context, TextRenderer textRenderer, List<PlayerInfo> players) {
+        float scale = config.scale;
 
         int maxWidth = 0;
-        for (PlayerInfo player : players) {
-            boolean isSelf = player.name.equals("You") || (client.getSession() != null && player.name.equals(client.getSession().getUsername()));
-            String maxDisplay = isSelf ? "" : "/" + WindChargeTracker.MAX_WIND_CHARGES;
-            String line = player.name + " - " + player.charges + maxDisplay;
-            int w = textRenderer.getWidth(line) + iconSize + iconPadding + 10;
-            if (w > maxWidth) maxWidth = w;
+        for (PlayerInfo p : players) {
+            int w = ICON_SIZE + ICON_PADDING + textRenderer.getWidth(p.name + " - " + chargeText(p));
+            maxWidth = Math.max(maxWidth, w);
+        }
+        int width = maxWidth + PADDING * 2;
+        int height = players.size() * LINE_HEIGHT + PADDING * 2;
+
+        lastHudX = config.hudX;
+        lastHudY = config.hudY;
+        lastHudWidth = Math.round(width * scale);
+        lastHudHeight = Math.round(height * scale);
+
+        context.getMatrices().push();
+        context.getMatrices().translate(config.hudX, config.hudY, 0);
+        context.getMatrices().scale(scale, scale, 1.0f);
+
+        if (config.backgroundColor >>> 24 != 0) {
+            context.fill(0, 0, width, height, config.backgroundColor);
         }
 
-        int totalWidth = maxWidth + padding * 2;
-        int totalHeight = players.size() * lineHeight + padding * 2;
+        int y = PADDING;
+        for (PlayerInfo p : players) {
+            int x = PADDING;
+            context.drawItem(WIND_CHARGE_STACK, x, y);
+            x += ICON_SIZE + ICON_PADDING;
 
-        lastHudX = hudX;
-        lastHudY = hudY;
-        lastHudWidth = (int) (totalWidth * config.scale);
-        lastHudHeight = (int) (totalHeight * config.scale);
+            int textY = y + (ICON_SIZE - textRenderer.fontHeight) / 2 + 1;
+            String nameText = p.name + " - ";
+            context.drawTextWithShadow(textRenderer, nameText, x, textY, config.textColor);
+            x += textRenderer.getWidth(nameText);
+            context.drawTextWithShadow(textRenderer, chargeText(p), x, textY, getChargeColor(p.charges));
 
-        if (editMode) {
-            context.fill(scaledX, scaledY, scaledX + totalWidth, scaledY + totalHeight, 0x40000000); // Faint bg in edit mode
+            y += LINE_HEIGHT;
         }
 
-        int yOffset = scaledY + padding;
-
-        for (PlayerInfo player : players) {
-            int xOffset = scaledX + padding;
-
-            context.drawItem(WIND_CHARGE_STACK, xOffset, yOffset);
-            xOffset += iconSize + iconPadding;
-
-            int textY = yOffset + (iconSize - textRenderer.fontHeight) / 2;
-
-            String nameText = player.name + " - ";
-            TextHelper.drawTextWithShadow(context, textRenderer, Text.literal(nameText), xOffset, textY, config.textColor);
-            xOffset += textRenderer.getWidth(nameText);
-
-            int chargeColor = getChargeColor(player.charges);
-            boolean isSelf = player.name.equals("You") || (client.getSession() != null && player.name.equals(client.getSession().getUsername()));
-            String maxDisplay = isSelf ? "" : "/" + WindChargeTracker.MAX_WIND_CHARGES;
-            String chargeText = player.charges + maxDisplay;
-            TextHelper.drawTextWithShadow(context, textRenderer, Text.literal(chargeText), xOffset, textY, chargeColor);
-
-            yOffset += lineHeight;
-        }
-
-        GuiHelper.pop(context);
+        context.getMatrices().pop();
     }
 
     /**
-     * Smooth gradient: dark green (full) → yellow (mid) → light red (empty)
+     * Yumuşak geçiş: yeşil (dolu) → sarı (yarı) → kırmızı (boş). ARGB döner.
      */
     public static int getChargeColor(int charges) {
-        float ratio = (float) charges / WindChargeTracker.MAX_WIND_CHARGES;
-        ratio = Math.max(0f, Math.min(1f, ratio));
-
-        int r, g, b;
+        float ratio = Math.max(0f, Math.min(1f, (float) charges / WindChargeTracker.MAX_WIND_CHARGES));
+        int r, g;
         if (ratio > 0.5f) {
-            // Green → Yellow (ratio 1.0 → 0.5)
-            float t = (ratio - 0.5f) * 2f; // 1.0 at full, 0.0 at mid
+            float t = (ratio - 0.5f) * 2f;
             r = (int) (255 * (1f - t));
-            g = (int) (170 + 85 * t); // 170→255 (darker green at top)
-            b = 0;
+            g = (int) (170 + 85 * t);
         } else {
-            // Yellow → Red (ratio 0.5 → 0.0)
-            float t = ratio * 2f; // 1.0 at mid, 0.0 at empty
             r = 255;
-            g = (int) (255 * t);
-            b = 0;
+            g = (int) (255 * ratio * 2f);
         }
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
+        return 0xFF000000 | (r << 16) | (g << 8);
     }
 
-    private void renderEditOverlay(DrawContext context, MinecraftClient client) {
-        if (lastHudWidth > 0 && lastHudHeight > 0) {
-            // Draw border around HUD area
-            int x1 = lastHudX - 2;
-            int y1 = lastHudY - 2;
-            int x2 = lastHudX + lastHudWidth + 2;
-            int y2 = lastHudY + lastHudHeight + 2;
-            // Top
-            context.fill(x1, y1, x2, y1 + 1, 0xFF55DDFF);
-            // Bottom
-            context.fill(x1, y2 - 1, x2, y2, 0xFF55DDFF);
-            // Left
-            context.fill(x1, y1, x1 + 1, y2, 0xFF55DDFF);
-            // Right
-            context.fill(x2 - 1, y1, x2, y2, 0xFF55DDFF);
-            // Faint background
-            context.fill(lastHudX, lastHudY, lastHudX + lastHudWidth, lastHudY + lastHudHeight, 0x30FFFFFF);
-        }
+    private void renderEditOverlay(DrawContext context) {
+        if (lastHudWidth <= 0 || lastHudHeight <= 0) return;
+        int x1 = lastHudX - 2, y1 = lastHudY - 2;
+        int x2 = lastHudX + lastHudWidth + 2, y2 = lastHudY + lastHudHeight + 2;
+        int c = isDragging ? 0xFFFFFF55 : 0xFF55DDFF;
+        context.fill(x1, y1, x2, y1 + 1, c);
+        context.fill(x1, y2 - 1, x2, y2, c);
+        context.fill(x1, y1, x1 + 1, y2, c);
+        context.fill(x2 - 1, y1, x2, y2, c);
+        context.fill(lastHudX, lastHudY, lastHudX + lastHudWidth, lastHudY + lastHudHeight, 0x30FFFFFF);
     }
 
     public boolean handleMouseClick(double mouseX, double mouseY, int button) {
         if (!editMode || button != 0) return false;
-
-        // Ensure hudX/hudY are initialized
-        if (config.hudX <= -9999 || config.hudY <= -9999) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getWindow() != null) {
-                config.hudX = client.getWindow().getScaledWidth() - 160;
-                config.hudY = 10;
-            }
-        }
-
-        // Click anywhere on screen starts dragging the HUD
+        ensurePosition(MinecraftClient.getInstance());
+        // ekranın herhangi bir yerine tıklayıp sürüklemek HUD'u taşır
         isDragging = true;
-        dragStartX = (int) mouseX - config.hudX;
-        dragStartY = (int) mouseY - config.hudY;
+        dragOffsetX = (int) mouseX - config.hudX;
+        dragOffsetY = (int) mouseY - config.hudY;
         return true;
     }
 
@@ -209,41 +173,18 @@ public class WindChargeHud {
     }
 
     public boolean handleMouseDrag(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (!editMode) return false;
-
-        if (isDragging) {
-            config.hudX = (int) mouseX - dragStartX;
-            config.hudY = (int) mouseY - dragStartY;
-            // Clamp to screen bounds
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getWindow() != null) {
-                int maxX = client.getWindow().getScaledWidth() - (int)(lastHudWidth > 0 ? lastHudWidth / config.scale : 10);
-                int maxY = client.getWindow().getScaledHeight() - (int)(lastHudHeight > 0 ? lastHudHeight / config.scale : 10);
-                config.hudX = Math.max(0, Math.min(config.hudX, maxX));
-                config.hudY = Math.max(0, Math.min(config.hudY, maxY));
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean isOver(double mx, double my) {
-        return mx >= lastHudX && mx <= lastHudX + lastHudWidth && my >= lastHudY && my <= lastHudY + lastHudHeight;
+        if (!editMode || !isDragging) return false;
+        MinecraftClient client = MinecraftClient.getInstance();
+        int maxX = client.getWindow().getScaledWidth() - lastHudWidth;
+        int maxY = client.getWindow().getScaledHeight() - lastHudHeight;
+        config.hudX = Math.max(0, Math.min((int) mouseX - dragOffsetX, Math.max(0, maxX)));
+        config.hudY = Math.max(0, Math.min((int) mouseY - dragOffsetY, Math.max(0, maxY)));
+        return true;
     }
 
     public boolean isDragging() { return isDragging; }
     public boolean isEditMode() { return editMode; }
     public ModConfig getConfig() { return config; }
 
-    private static class PlayerInfo {
-        final String name;
-        final int charges;
-        final UUID uuid;
-        PlayerInfo(String name, int charges, UUID uuid) {
-            this.name = name;
-            this.charges = charges;
-            this.uuid = uuid;
-        }
-    }
+    private record PlayerInfo(String name, int charges, boolean self) {}
 }

@@ -111,16 +111,20 @@ public class ConfigScreen extends Screen {
         this.addDrawableChild(ButtonWidget.builder(
             Text.literal("Edit HUD Position"),
             button -> {
-                this.client.setScreen(new EditModeScreen());
+                this.client.setScreen(new EditModeScreen(this));
             }
         ).dimensions(centerX - 100, startY, 200, btnHeight).build());
 
         this.addDrawableChild(ButtonWidget.builder(
             Text.literal("Back"),
-            button -> {
-                this.client.setScreen(parent);
-            }
+            button -> this.close()
         ).dimensions(centerX - 100, this.height - 30, 200, btnHeight).build());
+    }
+
+    @Override
+    public void close() {
+        config.save();
+        if (this.client != null) this.client.setScreen(parent);
     }
 
     @Override

@@ -15,8 +15,11 @@ public class ModConfig {
         .getConfigDir()
         .resolve("windchargecounter.json");
 
-    public int hudX = -9999;
-    public int hudY = -9999;
+    /** HUD konumu henüz ayarlanmadı (ilk açılışta sağ üste yerleşir). */
+    public static final int UNSET = -9999;
+
+    public int hudX = UNSET;
+    public int hudY = UNSET;
     public float scale = 1.0f;
     public boolean enableHud = true;
     public boolean showSelf = true;
@@ -38,6 +41,7 @@ public class ModConfig {
             if (loaded != null) {
                 copyFrom(loaded);
             }
+            scale = Math.max(0.5f, Math.min(3.0f, scale));
         } catch (Exception e) {
             WindChargeCounterMod.LOGGER.error("Config load error", e);
         }

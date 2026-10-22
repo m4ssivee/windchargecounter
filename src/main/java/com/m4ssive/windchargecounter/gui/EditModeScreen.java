@@ -2,107 +2,107 @@ package com.m4ssive.windchargecounter.gui;
 
 import com.m4ssive.windchargecounter.WindChargeCounterMod;
 import com.m4ssive.windchargecounter.config.ModConfig;
-import com.m4ssive.windchargecounter.util.TextHelper;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 
 public class EditModeScreen extends Screen {
 
+    private final Screen parent;
     private final WindChargeHud hud;
     private final ModConfig config;
 
     public EditModeScreen() {
+        this(null);
+    }
+
+    public EditModeScreen(Screen parent) {
         super(Text.literal("Edit Mode - WindCharge HUD"));
+        this.parent = parent;
         WindChargeCounterMod mod = WindChargeCounterMod.getInstance();
-        this.hud = mod != null ? mod.getHud() : null;
-        this.config = mod != null ? mod.getConfig() : null;
-        if (this.hud != null) {
-            this.hud.setEditMode(true);
-        }
+        this.hud = mod.getHud();
+        this.config = mod.getConfig();
+        this.hud.setEditMode(true);
     }
 
     @Override
-    protected void init() {}
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // vanilla blur yerine hafif karartma; oyun arkada görünsün
+        context.fill(0, 0, this.width, this.height, 0x60000000);
+    }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, this.width, this.height, 0x60000000);
-        if (hud != null) {
-            hud.render(context, delta);
-        }
+        renderBackground(context, mouseX, mouseY, delta);
+        hud.render(context);
 
         int headerHeight = 40;
         context.fillGradient(0, 0, this.width, headerHeight, 0xFF0a1628, 0xFF0d2137);
         context.fill(0, headerHeight - 2, this.width, headerHeight, 0xAA55DDFF);
 
-        TextHelper.drawCenteredTextWithShadow(context, this.textRenderer,
-            Text.literal("\u00a76\u00a7l\u270e EDIT MODE"),
-            this.width / 2, 10, 0xFFFFFF);
-
-        TextHelper.drawCenteredTextWithShadow(context, this.textRenderer,
-            Text.literal("\u00a7eDrag anywhere \u00a77to move HUD \u2022 \u00a7bScale \u00a77in Config"),
+        context.drawCenteredTextWithShadow(this.textRenderer,
+            Text.literal("§6§l✎ EDIT MODE"), this.width / 2, 10, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(this.textRenderer,
+            Text.literal("§eDrag anywhere §7to move HUD • §bScale §7in Config"),
             this.width / 2, 22, 0xE0E0E0);
 
         int footerY = this.height - 35;
         context.fillGradient(0, footerY, this.width, this.height, 0x80000000, 0xC0000000);
 
-        TextHelper.drawCenteredTextWithShadow(context, this.textRenderer,
-            Text.literal("\u00a77Press \u00a7eK/ESC \u00a77to save \u2022 \u00a7cQ \u00a77to cancel"),
+        KeyBinding key = WindChargeCounterMod.getToggleEditModeKey();
+        String keyName = key != null ? key.getBoundKeyLocalizedText().getString() : "K";
+        context.drawCenteredTextWithShadow(this.textRenderer,
+            Text.literal("§7Press §e" + keyName + "/ESC §7to save • §cQ §7to cancel"),
             this.width / 2, footerY + 8, 0xCCCCCC);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (hud != null) {
-            return hud.handleMouseClick(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return hud.handleMouseClick(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (hud != null) {
-            return hud.handleMouseRelease(mouseX, mouseY, button) || super.mouseReleased(mouseX, mouseY, button);
-        }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return hud.handleMouseRelease(mouseX, mouseY, button) || super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (hud != null) {
-            return hud.handleMouseDrag(mouseX, mouseY, button, deltaX, deltaY) || super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
-        }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return hud.handleMouseDrag(mouseX, mouseY, button, deltaX, deltaY) || super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 75 || keyCode == 256) {
-            exitEditMode(true);
+        KeyBinding key = WindChargeCounterMod.getToggleEditModeKey();
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE || (key != null && key.matchesKey(keyCode, scanCode))) {
+            exit(true);
             return true;
         }
-        if (keyCode == 81) {
-            exitEditMode(false);
+        if (keyCode == GLFW.GLFW_KEY_Q) {
+            exit(false);
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private void exitEditMode(boolean save) {
-        if (hud != null) hud.setEditMode(false);
-        if (save && config != null) {
-            config.save();
-        } else if (config != null) {
-            config.load();
-        }
-        this.close();
+    private void exit(boolean save) {
+        if (save) config.save();
+        else config.load(); // kaydedilmemiş konumu geri al
+        close();
     }
 
     @Override
     public void close() {
-        if (hud != null) hud.setEditMode(false);
-        if (this.client != null) this.client.setScreen(null);
+        hud.setEditMode(false);
+        if (this.client != null) this.client.setScreen(parent);
+    }
+
+    @Override
+    public void removed() {
+        // pencere başka bir yolla kapanırsa (ör. disconnect) edit mode takılı kalmasın
+        hud.setEditMode(false);
     }
 
     @Override
