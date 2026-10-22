@@ -58,6 +58,12 @@ public class WindChargeCounterMod implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommandManager.literal("wcc")
+                .then(ClientCommandManager.literal("version").executes(context -> {
+                    String v = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(MOD_ID)
+                        .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
+                    context.getSource().sendFeedback(Text.literal("[WCC] WindChargeCounter v" + v).formatted(Formatting.AQUA));
+                    return 1;
+                }))
                 .then(ClientCommandManager.literal("reset").executes(context -> {
                     tracker.clearAll();
                     context.getSource().sendFeedback(Text.literal("[WCC] Counters reset for the new round!").formatted(Formatting.GREEN));
