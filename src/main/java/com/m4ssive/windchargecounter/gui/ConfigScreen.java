@@ -14,7 +14,7 @@ public class ConfigScreen extends Screen {
     private static final int BTN_W = 150;
     private static final int BTN_H = 20;
     private static final int GAP = 4;
-    private static final int[] OPACITY_STEPS = {0, 64, 128, 160, 200, 255};
+    private static final int[] OPACITY_STEPS = {0, 25, 50, 63, 80, 100};
 
     private final Screen parent;
     private final ModConfig config;
@@ -45,8 +45,8 @@ public class ConfigScreen extends Screen {
         toggle(left, y, "Progress Bars", () -> config.showBars, v -> config.showBars = v);
         this.addDrawableChild(ButtonWidget.builder(opacityLabel(), b -> {
             int next = OPACITY_STEPS[0];
-            for (int s : OPACITY_STEPS) if (s > config.backgroundOpacity) { next = s; break; }
-            config.backgroundOpacity = next;
+            for (int s : OPACITY_STEPS) if (s > config.panelOpacity) { next = s; break; }
+            config.panelOpacity = next;
             b.setMessage(opacityLabel());
             config.save();
         }).dimensions(right, y, BTN_W, BTN_H).build());
@@ -96,7 +96,7 @@ public class ConfigScreen extends Screen {
     }
 
     private Text opacityLabel() {
-        return Text.literal("Background: " + Math.round(config.backgroundOpacity / 2.55f) + "%");
+        return Text.literal("Background: " + config.panelOpacity + "%");
     }
 
     private void changeScale(float delta) {

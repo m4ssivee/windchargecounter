@@ -115,7 +115,7 @@ public class WindChargeHud {
         long now = System.currentTimeMillis();
 
         // yuvarlatılmış köşeli arka plan
-        int bg = (clamp(config.backgroundOpacity, 0, 255) << 24) | PANEL_RGB;
+        int bg = (clamp(config.panelOpacity * 255 / 100, 0, 255) << 24) | PANEL_RGB;
         if ((bg >>> 24) != 0) {
             ctx.fill(1, 0, w - 1, h, bg);
             ctx.fill(0, 1, 1, h - 1, bg);
