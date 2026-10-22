@@ -27,7 +27,8 @@ public final class ThemeTab {
     private ThemeTab() {}
 
     public static Popover create(ModConfig cfg, EditorScreen screen) {
-        Button reset = Button.fit("Reset", false, () -> cfg.applyTheme(Themes.byId(cfg.themeId)));
+        Button reset = new Button(Draw.textWidth("Reset") + 10, 12, () -> "Reset", false,
+            () -> cfg.applyTheme(Themes.byId(cfg.themeId)));
         Slider opacity = new Slider(0, "Panel opacity", v -> Math.round(v) + "%", 0f, 100f, 1f,
             () -> (float) cfg.panelOpacity, v -> cfg.panelOpacity = Math.round(v), 0);
         return new Popover("Theme", List.of(

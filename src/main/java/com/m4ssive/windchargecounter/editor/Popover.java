@@ -42,7 +42,7 @@ public class Popover extends Widget {
             r.at(x + PAD, cy);
             cy += r.h + GAP;
         }
-        if (headerAction != null) headerAction.at(x + w - PAD - headerAction.w, y + PAD - 2);
+        if (headerAction != null) headerAction.at(x + w - PAD - headerAction.w, y + PAD - 3);
     }
 
     @Override
