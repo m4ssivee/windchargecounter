@@ -35,7 +35,8 @@ public class Segmented extends Widget {
                 Draw.rect(ctx, cx, y, cw, h, t.surfaceAlt());
                 Draw.border(ctx, cx, y, cw, h, 1, hover ? t.accent() : t.line());
             }
-            Draw.textCentered(ctx, options.get(i), cx + cw / 2, y + 3, sel ? t.onAccent() : t.text());
+            if (sel) Draw.textFlatCentered(ctx, options.get(i), cx + cw / 2, y + 3, t.onAccent());
+            else Draw.textCentered(ctx, options.get(i), cx + cw / 2, y + 3, t.text());
         }
     }
 

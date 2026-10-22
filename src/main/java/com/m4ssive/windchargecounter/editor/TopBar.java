@@ -73,14 +73,15 @@ public class TopBar extends Widget {
             boolean hover = hit(mx, my, tabX[i], tabW[i]);
             if (sel) Draw.rect(ctx, tabX[i], y + PAD, tabW[i], h - PAD * 2, t.accent());
             else if (hover) Draw.rect(ctx, tabX[i], y + PAD, tabW[i], h - PAD * 2, t.surfaceAlt());
-            Draw.text(ctx, TAB_LABELS[i], tabX[i] + BTN_PAD, y + 6, sel ? t.onAccent() : hover ? t.text() : 0xFFC7D3E6);
+            if (sel) Draw.textFlat(ctx, TAB_LABELS[i], tabX[i] + BTN_PAD, y + 6, t.onAccent());
+            else Draw.text(ctx, TAB_LABELS[i], tabX[i] + BTN_PAD, y + 6, hover ? t.text() : 0xFFC7D3E6);
         }
         Draw.rect(ctx, cancelX - 4, y + 4, 1, h - 8, t.line());
         boolean hc = hit(mx, my, cancelX, cancelW);
         Draw.text(ctx, "Cancel", cancelX + BTN_PAD, y + 6, hc ? t.text() : t.muted());
         boolean hd = hit(mx, my, doneX, doneW);
         Draw.rect(ctx, doneX, y + PAD, doneW, h - PAD * 2, hd ? 0xFF7FF08A : 0xFF5FE36A);
-        Draw.text(ctx, "Done", doneX + BTN_PAD, y + 6, 0xFF0A1020);
+        Draw.textFlat(ctx, "Done", doneX + BTN_PAD, y + 6, 0xFF0A1020);
     }
 
     private boolean hit(double mx, double my, int bx, int bw) {

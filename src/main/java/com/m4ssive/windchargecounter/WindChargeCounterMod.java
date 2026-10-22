@@ -91,6 +91,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (!m4LibRegistered) tryRegisterNametagSuffix();
+            com.m4ssive.windchargecounter.editor.DevPreview.tick(client);
 
             if (client.player != null) {
                 tracker.checkDuelReset(client.player, client.world, config.autoResetOnDeath);

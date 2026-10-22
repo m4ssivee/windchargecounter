@@ -48,6 +48,15 @@ public final class Draw {
         ctx.drawTextWithShadow(font(), s, x, y, argb);
     }
 
+    /** Flat text without shadow, for dark text on light (accent) fills. */
+    public static void textFlat(DrawContext ctx, String s, int x, int y, int argb) {
+        ctx.drawText(font(), s, x, y, argb, false);
+    }
+
+    public static void textFlatCentered(DrawContext ctx, String s, int cx, int y, int argb) {
+        textFlat(ctx, s, cx - textWidth(s) / 2, y, argb);
+    }
+
     public static void textCentered(DrawContext ctx, String s, int cx, int y, int argb) {
         text(ctx, s, cx - textWidth(s) / 2, y, argb);
     }

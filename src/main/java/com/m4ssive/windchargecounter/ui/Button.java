@@ -30,7 +30,8 @@ public class Button extends Widget {
             Draw.rect(ctx, x, y, w, h, hover ? t.surfaceAlt() : 0x00000000);
             Draw.border(ctx, x, y, w, h, 1, hover ? t.accent() : t.line());
         }
-        Draw.textCentered(ctx, label.get(), x + w / 2, y + (h - 8) / 2, primary ? t.onAccent() : t.text());
+        if (primary) Draw.textFlatCentered(ctx, label.get(), x + w / 2, y + (h - 8) / 2, t.onAccent());
+        else Draw.textCentered(ctx, label.get(), x + w / 2, y + (h - 8) / 2, t.text());
     }
 
     @Override
