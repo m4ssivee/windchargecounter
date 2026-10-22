@@ -2,12 +2,15 @@ package com.m4ssive.windchargecounter.editor;
 
 import com.m4ssive.windchargecounter.WindChargeCounterMod;
 import com.m4ssive.windchargecounter.config.ModConfig;
+import com.m4ssive.windchargecounter.editor.layout.PopoverPlacement;
 import com.m4ssive.windchargecounter.editor.layout.SnapResult;
 import com.m4ssive.windchargecounter.editor.layout.Snapping;
+import com.m4ssive.windchargecounter.editor.tabs.CounterTab;
+import com.m4ssive.windchargecounter.editor.tabs.LayoutTab;
+import com.m4ssive.windchargecounter.editor.tabs.NametagTab;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
 import com.m4ssive.windchargecounter.ui.Draw;
 import com.m4ssive.windchargecounter.ui.UiTheme;
-import com.m4ssive.windchargecounter.ui.Widget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
@@ -23,6 +26,7 @@ public class EditorScreen extends Screen {
 
     private static final int DIM = 0x610A1020;
     private static final int SNAP_THRESHOLD = 6;
+    private static final int POPOVER_GAP = 6;
     private static final String HINT = "Click select · Drag move · Scroll resize · Arrows nudge 1px";
 
     private final Screen parent;
@@ -32,10 +36,10 @@ public class EditorScreen extends Screen {
     private final TopBar topBar;
 
     private Tab activeTab = Tab.LAYOUT;
-    /** Open popover (or picker) on top of everything, null when closed. Filled by later tasks. */
-    protected Widget overlay;
-    /** Toolbar attached to the HUD. Filled by later tasks. */
-    protected Widget toolbar;
+    /** Open popover on top of everything, null when closed. */
+    private Popover overlay;
+    private Tab overlayTab;
+    private final Toolbar toolbar;
 
     private boolean dragging;
     private boolean dragFree;
@@ -50,6 +54,7 @@ public class EditorScreen extends Screen {
         this.hud = mod.getHud();
         this.snapshot = config.copy();
         this.topBar = new TopBar(() -> activeTab, this::openTab, this::cancel, this::done);
+        this.toolbar = new Toolbar(this, config);
     }
 
     public ModConfig config() {
@@ -68,15 +73,31 @@ public class EditorScreen extends Screen {
     public void openTab(Tab tab) {
         activeTab = tab;
         overlay = createPopover(tab);
+        overlayTab = overlay == null ? null : tab;
     }
 
-    /** Hook for the popover of a tab; none until the toolbar task adds them. */
-    protected Widget createPopover(Tab tab) {
-        return null;
+    /** Opens the tab's popover, or closes it when it is already open. */
+    public void togglePopover(Tab tab) {
+        if (isPopoverOpen(tab)) closeOverlay();
+        else openTab(tab);
+    }
+
+    public boolean isPopoverOpen(Tab tab) {
+        return overlay != null && overlayTab == tab;
     }
 
     public void closeOverlay() {
         overlay = null;
+        overlayTab = null;
+    }
+
+    protected Popover createPopover(Tab tab) {
+        return switch (tab) {
+            case LAYOUT -> LayoutTab.create(config, this);
+            case COUNTER -> CounterTab.create(config, this);
+            case NAMETAG -> NametagTab.create(config, this);
+            case THEME -> null;
+        };
     }
 
     // ------------------------------------------------------------------ lifecycle
@@ -135,15 +156,16 @@ public class EditorScreen extends Screen {
             if (guideY != null) Draw.dashedH(ctx, Math.min(guideY, this.height - 1), 0, this.width, g);
         }
 
-        renderToolbar(ctx, mouseX, mouseY, t);
+        toolbar.layout(hud.bounds(), this.width, this.height);
+        toolbar.render(ctx, mouseX, mouseY, t);
         topBar.render(ctx, mouseX, mouseY, t);
         renderHint(ctx, t);
-        if (overlay != null) overlay.render(ctx, mouseX, mouseY, t);
-    }
-
-    /** Hook for the toolbar; positions it from the HUD bounds before drawing. */
-    protected void renderToolbar(DrawContext ctx, int mouseX, int mouseY, UiTheme t) {
-        if (toolbar != null) toolbar.render(ctx, mouseX, mouseY, t);
+        if (overlay != null) {
+            int target = overlayTab == Tab.THEME ? toolbar.chipCenterX() : toolbar.moreCenterX();
+            overlay.place(PopoverPlacement.place(toolbar.x, toolbar.y, toolbar.y + toolbar.h,
+                overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target));
+            overlay.render(ctx, mouseX, mouseY, t);
+        }
     }
 
     private void renderHint(DrawContext ctx, UiTheme t) {
@@ -159,11 +181,11 @@ public class EditorScreen extends Screen {
     private boolean onClick(double mx, double my, int button, boolean shift) {
         if (overlay != null) {
             if (overlay.mouseClicked(mx, my, button)) return true;
-            if (!overlay.contains(mx, my) && (toolbar == null || !toolbar.contains(mx, my))) {
-                overlay = null; // click outside closes the popover
+            if (!overlay.contains(mx, my) && !toolbar.contains(mx, my)) {
+                closeOverlay(); // click outside closes the popover
             }
         }
-        if (toolbar != null && toolbar.mouseClicked(mx, my, button)) return true;
+        if (toolbar.mouseClicked(mx, my, button)) return true;
         if (topBar.mouseClicked(mx, my, button)) return true;
 
         int[] b = hud.bounds();
