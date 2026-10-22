@@ -76,7 +76,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.currentScreen == null && !client.options.hudHidden) {
-                hud.render(context);
+                hud.render(context, false);
             }
         });
 
