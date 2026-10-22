@@ -22,3 +22,8 @@ Thumbs.db
 
 # Local libs
 libs/
+
+# dev client/server runs
+versions/*/logs/
+versions/*/run/
+.superpowers/
