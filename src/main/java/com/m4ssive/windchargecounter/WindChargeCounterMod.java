@@ -47,8 +47,14 @@ public class WindChargeCounterMod implements ClientModInitializer {
         tracker = new WindChargeTracker();
         hud = new WindChargeHud(tracker, config);
 
+        //? if >=1.21.9 {
+        /*toggleEditModeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.windchargecounter.toggleedit", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K,
+            KeyBinding.Category.create(net.minecraft.util.Identifier.of(MOD_ID, "main"))));
+        *///?} else {
         toggleEditModeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.windchargecounter.toggleedit", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.windchargecounter"));
+        //?}
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommandManager.literal("wcc")

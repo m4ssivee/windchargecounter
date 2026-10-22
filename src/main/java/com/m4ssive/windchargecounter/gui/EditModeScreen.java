@@ -58,6 +58,36 @@ public class EditModeScreen extends Screen {
             this.width / 2, footerY + 8, 0xCCCCCC);
     }
 
+    //? if >=1.21.9 {
+    /*@Override
+    public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean doubled) {
+        return hud.handleMouseClick(click.x(), click.y(), click.button()) || super.mouseClicked(click, doubled);
+    }
+
+    @Override
+    public boolean mouseReleased(net.minecraft.client.gui.Click click) {
+        return hud.handleMouseRelease(click.x(), click.y(), click.button()) || super.mouseReleased(click);
+    }
+
+    @Override
+    public boolean mouseDragged(net.minecraft.client.gui.Click click, double deltaX, double deltaY) {
+        return hud.handleMouseDrag(click.x(), click.y(), click.button(), deltaX, deltaY) || super.mouseDragged(click, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyInput input) {
+        KeyBinding key = WindChargeCounterMod.getToggleEditModeKey();
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE || (key != null && key.matchesKey(input))) {
+            exit(true);
+            return true;
+        }
+        if (input.key() == GLFW.GLFW_KEY_Q) {
+            exit(false);
+            return true;
+        }
+        return super.keyPressed(input);
+    }
+    *///?} else {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         return hud.handleMouseClick(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
@@ -86,6 +116,7 @@ public class EditModeScreen extends Screen {
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
+    //?}
 
     private void exit(boolean save) {
         if (save) config.save();

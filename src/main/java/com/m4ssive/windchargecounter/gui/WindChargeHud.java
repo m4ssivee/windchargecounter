@@ -100,9 +100,15 @@ public class WindChargeHud {
         lastHudWidth = Math.round(width * scale);
         lastHudHeight = Math.round(height * scale);
 
+        //? if >=1.21.6 {
+        /*context.getMatrices().pushMatrix();
+        context.getMatrices().translate((float) config.hudX, (float) config.hudY);
+        context.getMatrices().scale(scale, scale);
+        *///?} else {
         context.getMatrices().push();
         context.getMatrices().translate(config.hudX, config.hudY, 0);
         context.getMatrices().scale(scale, scale, 1.0f);
+        //?}
 
         if (config.backgroundColor >>> 24 != 0) {
             context.fill(0, 0, width, height, config.backgroundColor);
@@ -123,7 +129,11 @@ public class WindChargeHud {
             y += LINE_HEIGHT;
         }
 
+        //? if >=1.21.6 {
+        /*context.getMatrices().popMatrix();
+        *///?} else {
         context.getMatrices().pop();
+        //?}
     }
 
     /**

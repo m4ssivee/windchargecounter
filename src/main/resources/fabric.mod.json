@@ -18,10 +18,10 @@
   },
   "mixins": ["windchargecounter.mixins.json"],
   "depends": {
-    "fabricloader": ">=0.18.5",
+    "fabricloader": ">=0.16.0",
     "fabric-api": "*",
-    "minecraft": ">=1.21 <1.21.2",
-    "java": "*",
+    "minecraft": "${mc_dep}",
+    "java": ">=21",
     "m4lib": ">=1.0.0"
   },
   "recommends": {
