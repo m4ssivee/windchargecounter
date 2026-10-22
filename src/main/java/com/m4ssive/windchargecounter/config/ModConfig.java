@@ -5,7 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.m4ssive.windchargecounter.WindChargeCounterMod;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.io.*;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -18,18 +19,22 @@ public class ModConfig {
     /** HUD konumu henüz ayarlanmadı (ilk açılışta sağ üste yerleşir). */
     public static final int UNSET = -9999;
 
+    // konum & boyut
     public int hudX = UNSET;
     public int hudY = UNSET;
     public float scale = 1.0f;
+
+    // görünüm
     public boolean enableHud = true;
     public boolean showSelf = true;
+    public boolean showHeader = true;
+    public boolean showBars = true;
+    public boolean flashOnThrow = true;
+    public int backgroundOpacity = 160; // 0-255
+
+    // davranış
     public boolean showInNametags = true;
     public boolean autoResetOnDeath = true;
-    public int textColor = 0xFFFFFFFF;
-    public int countHighColor = 0xFF55DDFF;
-    public int countMidColor = 0xFFFFFF55;
-    public int countLowColor = 0xFFFF5555;
-    public int backgroundColor = 0x60001020;
 
     public void load() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -37,17 +42,17 @@ public class ModConfig {
             return;
         }
         try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
+            // eski config'teki bilinmeyen alanlar yok sayılır, eksik alanlar varsayılanda kalır
             ModConfig loaded = GSON.fromJson(reader, ModConfig.class);
-            if (loaded != null) {
-                copyFrom(loaded);
-            }
-            scale = Math.max(0.5f, Math.min(3.0f, scale));
+            if (loaded != null) copyFrom(loaded);
         } catch (Exception e) {
-            WindChargeCounterMod.LOGGER.error("Config load error", e);
+            WindChargeCounterMod.LOGGER.error("Config load error, using defaults", e);
         }
+        sanitize();
     }
 
     public void save() {
+        sanitize();
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
@@ -58,18 +63,23 @@ public class ModConfig {
         }
     }
 
-    private void copyFrom(ModConfig other) {
-        this.hudX = other.hudX;
-        this.hudY = other.hudY;
-        this.scale = other.scale;
-        this.enableHud = other.enableHud;
-        this.showSelf = other.showSelf;
-        this.showInNametags = other.showInNametags;
-        this.autoResetOnDeath = other.autoResetOnDeath;
-        this.textColor = other.textColor;
-        this.countHighColor = other.countHighColor;
-        this.countMidColor = other.countMidColor;
-        this.countLowColor = other.countLowColor;
-        this.backgroundColor = other.backgroundColor;
+    private void sanitize() {
+        if (Float.isNaN(scale)) scale = 1.0f;
+        scale = Math.max(0.5f, Math.min(3.0f, scale));
+        backgroundOpacity = Math.max(0, Math.min(255, backgroundOpacity));
+    }
+
+    private void copyFrom(ModConfig o) {
+        hudX = o.hudX;
+        hudY = o.hudY;
+        scale = o.scale;
+        enableHud = o.enableHud;
+        showSelf = o.showSelf;
+        showHeader = o.showHeader;
+        showBars = o.showBars;
+        flashOnThrow = o.flashOnThrow;
+        backgroundOpacity = o.backgroundOpacity;
+        showInNametags = o.showInNametags;
+        autoResetOnDeath = o.autoResetOnDeath;
     }
 }

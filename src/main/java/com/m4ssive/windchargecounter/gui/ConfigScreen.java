@@ -7,118 +7,102 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 public class ConfigScreen extends Screen {
+    private static final int BTN_W = 150;
+    private static final int BTN_H = 20;
+    private static final int GAP = 4;
+    private static final int[] OPACITY_STEPS = {0, 64, 128, 160, 200, 255};
+
     private final Screen parent;
     private final ModConfig config;
 
     public ConfigScreen(Screen parent) {
-        super(Text.literal("WindChargeCounter Config"));
+        super(Text.literal("WindChargeCounter"));
         this.parent = parent;
         this.config = WindChargeCounterMod.getInstance().getConfig();
     }
 
     @Override
     protected void init() {
-        int centerX = this.width / 2;
-        int startY = 40;
-        int btnHeight = 20;
-        int spacing = 24;
+        int left = this.width / 2 - BTN_W - GAP / 2;
+        int right = this.width / 2 + GAP / 2;
+        int y = 36;
+        int step = BTN_H + GAP;
 
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Enable HUD: " + (config.enableHud ? "ON" : "OFF")),
-            button -> {
-                config.enableHud = !config.enableHud;
-                button.setMessage(Text.literal("Enable HUD: " + (config.enableHud ? "ON" : "OFF")));
-                config.save();
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
+        // sol sütun: görünüm
+        toggle(left, y, "HUD", () -> config.enableHud, v -> config.enableHud = v);
+        toggle(right, y, "Nametag Counter", () -> config.showInNametags, v -> config.showInNametags = v);
+        y += step;
+        toggle(left, y, "Show Yourself", () -> config.showSelf, v -> config.showSelf = v);
+        toggle(right, y, "Reset on Death", () -> config.autoResetOnDeath, v -> config.autoResetOnDeath = v);
+        y += step;
+        toggle(left, y, "Header", () -> config.showHeader, v -> config.showHeader = v);
+        toggle(right, y, "Flash on Throw", () -> config.flashOnThrow, v -> config.flashOnThrow = v);
+        y += step;
+        toggle(left, y, "Progress Bars", () -> config.showBars, v -> config.showBars = v);
+        this.addDrawableChild(ButtonWidget.builder(opacityLabel(), b -> {
+            int next = OPACITY_STEPS[0];
+            for (int s : OPACITY_STEPS) if (s > config.backgroundOpacity) { next = s; break; }
+            config.backgroundOpacity = next;
+            b.setMessage(opacityLabel());
+            config.save();
+        }).dimensions(right, y, BTN_W, BTN_H).build());
+        y += step;
 
-        startY += spacing;
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Show Self: " + (config.showSelf ? "ON" : "OFF")),
-            button -> {
-                config.showSelf = !config.showSelf;
-                button.setMessage(Text.literal("Show Self: " + (config.showSelf ? "ON" : "OFF")));
-                config.save();
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
+        // boyut: [-] [Scale] [+]
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("-"), b -> changeScale(-0.1f))
+            .dimensions(left, y, 20, BTN_H).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal(String.format("Scale: %.1fx", config.scale)), b -> {
+            config.scale = 1.0f;
+            config.save();
+            this.clearAndInit();
+        }).dimensions(left + 22, y, BTN_W - 44, BTN_H).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("+"), b -> changeScale(0.1f))
+            .dimensions(left + BTN_W - 20, y, 20, BTN_H).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Move / Resize HUD"),
+            b -> this.client.setScreen(new EditModeScreen(this))
+        ).dimensions(right, y, BTN_W, BTN_H).build());
+        y += step;
 
-        startY += spacing;
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Show in Nametags: " + (config.showInNametags ? "ON" : "OFF")),
-            button -> {
-                config.showInNametags = !config.showInNametags;
-                button.setMessage(Text.literal("Show in Nametags: " + (config.showInNametags ? "ON" : "OFF")));
-                config.save();
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
-        
-        startY += spacing;
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Auto Reset on Death: " + (config.autoResetOnDeath ? "ON" : "OFF")),
-            button -> {
-                config.autoResetOnDeath = !config.autoResetOnDeath;
-                button.setMessage(Text.literal("Auto Reset on Death: " + (config.autoResetOnDeath ? "ON" : "OFF")));
-                config.save();
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Reset Counters"), b -> {
+            WindChargeCounterMod.getInstance().getTracker().clearAll();
+            b.setMessage(Text.literal("Counters Reset ✔"));
+        }).dimensions(left, y, BTN_W, BTN_H).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Reset HUD Position"), b -> {
+            config.hudX = ModConfig.UNSET;
+            config.hudY = ModConfig.UNSET;
+            config.save();
+            b.setMessage(Text.literal("Position Reset ✔"));
+        }).dimensions(right, y, BTN_W, BTN_H).build());
 
-        startY += spacing;
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Reset All Counters"),
-            button -> {
-                if (WindChargeCounterMod.getInstance().getTracker() != null) {
-                    WindChargeCounterMod.getInstance().getTracker().clearAll();
-                    button.setMessage(Text.literal("Reset All Counters (Reset!)"));
-                }
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> this.close())
+            .dimensions(this.width / 2 - 100, this.height - 28, 200, BTN_H).build());
+    }
 
-        // Scale controls: [-] [value] [+]
-        startY += spacing;
-        final int scaleY = startY;
-        // Decrease scale
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("-"),
-            button -> {
-                config.scale = Math.max(0.5f, config.scale - 0.25f);
-                config.save();
-                this.clearAndInit();
-            }
-        ).dimensions(centerX - 100, scaleY, 30, btnHeight).build());
-        // Scale display
-        String scaleText = String.format("Scale: %.2fx", config.scale);
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal(scaleText),
-            button -> {
-                // Reset to default
-                config.scale = 1.0f;
-                config.save();
-                this.clearAndInit();
-            }
-        ).dimensions(centerX - 68, scaleY, 136, btnHeight).build());
-        // Increase scale
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("+"),
-            button -> {
-                config.scale = Math.min(3.0f, config.scale + 0.25f);
-                config.save();
-                this.clearAndInit();
-            }
-        ).dimensions(centerX + 70, scaleY, 30, btnHeight).build());
+    private void toggle(int x, int y, String label, Supplier<Boolean> get, Consumer<Boolean> set) {
+        this.addDrawableChild(ButtonWidget.builder(toggleLabel(label, get.get()), b -> {
+            boolean v = !get.get();
+            set.accept(v);
+            b.setMessage(toggleLabel(label, v));
+            config.save();
+        }).dimensions(x, y, BTN_W, BTN_H).build());
+    }
 
-        startY += spacing;
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Edit HUD Position"),
-            button -> {
-                this.client.setScreen(new EditModeScreen(this));
-            }
-        ).dimensions(centerX - 100, startY, 200, btnHeight).build());
+    private static Text toggleLabel(String label, boolean on) {
+        return Text.literal(label + ": " + (on ? "§aON" : "§cOFF"));
+    }
 
-        this.addDrawableChild(ButtonWidget.builder(
-            Text.literal("Back"),
-            button -> this.close()
-        ).dimensions(centerX - 100, this.height - 30, 200, btnHeight).build());
+    private Text opacityLabel() {
+        return Text.literal("Background: " + Math.round(config.backgroundOpacity / 2.55f) + "%");
+    }
+
+    private void changeScale(float delta) {
+        config.scale = Math.round(Math.max(0.5f, Math.min(3.0f, config.scale + delta)) * 10f) / 10f;
+        config.save();
+        this.clearAndInit();
     }
 
     @Override
@@ -130,6 +114,6 @@ public class ConfigScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFFFF);
     }
 }

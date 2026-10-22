@@ -43,10 +43,10 @@ public class EditModeScreen extends Screen {
         context.fill(0, headerHeight - 2, this.width, headerHeight, 0xAA55DDFF);
 
         context.drawCenteredTextWithShadow(this.textRenderer,
-            Text.literal("§6§l✎ EDIT MODE"), this.width / 2, 10, 0xFFFFFF);
+            Text.literal("§6§l✎ EDIT MODE"), this.width / 2, 10, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(this.textRenderer,
-            Text.literal("§eDrag anywhere §7to move HUD • §bScale §7in Config"),
-            this.width / 2, 22, 0xE0E0E0);
+            Text.literal("§eDrag §7to move • §eScroll §7to resize §8(" + String.format("%.1fx", config.scale) + ")"),
+            this.width / 2, 22, 0xFFE0E0E0);
 
         int footerY = this.height - 35;
         context.fillGradient(0, footerY, this.width, this.height, 0x80000000, 0xC0000000);
@@ -55,7 +55,7 @@ public class EditModeScreen extends Screen {
         String keyName = key != null ? key.getBoundKeyLocalizedText().getString() : "K";
         context.drawCenteredTextWithShadow(this.textRenderer,
             Text.literal("§7Press §e" + keyName + "/ESC §7to save • §cQ §7to cancel"),
-            this.width / 2, footerY + 8, 0xCCCCCC);
+            this.width / 2, footerY + 8, 0xFFCCCCCC);
     }
 
     //? if >=1.21.9 {
@@ -117,6 +117,11 @@ public class EditModeScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
     //?}
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return hud.handleScroll(verticalAmount) || super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
 
     private void exit(boolean save) {
         if (save) config.save();

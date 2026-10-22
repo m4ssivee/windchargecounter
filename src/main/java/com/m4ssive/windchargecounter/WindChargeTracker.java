@@ -16,10 +16,17 @@ public class WindChargeTracker {
     // aynı mermi entity'si render mesafesinden çıkıp tekrar girerse ikinci kez sayılmasın
     private static final int MAX_SEEN_PROJECTILES = 512;
 
-    private final Map<UUID, Integer> windChargesUsed = new HashMap<>();
+    /** HUD'da gösterim için rakip bilgisi. */
+    public record Opponent(UUID uuid, String name, int remaining, long lastUse) {}
+
+    // LinkedHashMap: rakipler ilk görüldükleri sırada listelenir, HUD satırları zıplamaz
+    private final Map<UUID, Integer> windChargesUsed = new LinkedHashMap<>();
+    private final Map<UUID, String> opponentNames = new HashMap<>();
+    private final Map<UUID, Long> lastUseTime = new HashMap<>();
     private final Set<UUID> seenProjectiles = new LinkedHashSet<>();
 
     private int localPlayerCount = 0;
+    private long lastLocalUse = 0;
     private boolean hasLocalSample = false;
 
     private boolean wasPlayerDead = false;
@@ -43,6 +50,9 @@ public class WindChargeTracker {
             clearAll();
         }
 
+        if (hasLocalSample && count < localPlayerCount) {
+            lastLocalUse = System.currentTimeMillis();
+        }
         localPlayerCount = count;
         hasLocalSample = true;
     }
@@ -102,6 +112,8 @@ public class WindChargeTracker {
         UUID id = player.getUuid();
         int used = windChargesUsed.getOrDefault(id, 0) + 1;
         windChargesUsed.put(id, Math.min(used, MAX_WIND_CHARGES));
+        opponentNames.put(id, player.getName().getString());
+        lastUseTime.put(id, System.currentTimeMillis());
     }
 
     public boolean hasWindCharge() {
@@ -124,17 +136,36 @@ public class WindChargeTracker {
         return MAX_WIND_CHARGES - getWindChargesUsed(playerId);
     }
 
+    /** Takip edilen rakipler, ilk görülme sırasına göre. Render mesafesinden çıkanlar da dahil. */
+    public List<Opponent> getOpponents() {
+        List<Opponent> list = new ArrayList<>(windChargesUsed.size());
+        for (Map.Entry<UUID, Integer> e : windChargesUsed.entrySet()) {
+            UUID id = e.getKey();
+            list.add(new Opponent(id, opponentNames.getOrDefault(id, "?"),
+                MAX_WIND_CHARGES - e.getValue(), lastUseTime.getOrDefault(id, 0L)));
+        }
+        return list;
+    }
+
+    public long getLastLocalUse() {
+        return lastLocalUse;
+    }
+
     public Map<UUID, Integer> getAllOpponentUsage() {
         return new HashMap<>(windChargesUsed);
     }
 
     public void clearPlayer(UUID playerId) {
         windChargesUsed.remove(playerId);
+        opponentNames.remove(playerId);
+        lastUseTime.remove(playerId);
     }
 
     /** Rakip sayaçlarını sıfırlar. Kendi sayımız envanterden okunduğu için dokunulmaz. */
     public void clearAll() {
         windChargesUsed.clear();
+        opponentNames.clear();
+        lastUseTime.clear();
         seenProjectiles.clear();
     }
 }
