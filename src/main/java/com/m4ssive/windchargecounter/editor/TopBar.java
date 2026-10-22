@@ -31,21 +31,28 @@ public class TopBar extends Widget {
         this.onDone = onDone;
     }
 
-    /** Computes widths and centers the bar horizontally at {@code top}. */
-    public void layout(int screenW, int top) {
-        brandW = 10 + 3 + Draw.textWidth("WCC") + 6;
-        int width = PAD + brandW + 4;
-        for (int i = 0; i < 4; i++) {
-            tabW[i] = Draw.textWidth(TAB_LABELS[i]) + BTN_PAD * 2;
-            width += tabW[i] + GAP;
-        }
+    private boolean compact;
+
+    /** Width with the "WCC" brand ({@code compact=false}) or without it. */
+    public int measure(boolean compactMode) {
+        int brand = compactMode ? 0 : 10 + 3 + Draw.textWidth("WCC") + 6 + 4;
+        int width = PAD + brand;
+        for (int i = 0; i < 4; i++) width += Draw.textWidth(TAB_LABELS[i]) + BTN_PAD * 2 + GAP;
+        width += 6 + Draw.textWidth("Cancel") + BTN_PAD * 2 + GAP + Draw.textWidth("Done") + BTN_PAD * 2 + PAD;
+        return width;
+    }
+
+    /** Positions the bar at (left, top); compact hides the brand. */
+    public void setPosition(int left, int top, boolean compactMode) {
+        compact = compactMode;
+        brandW = compact ? 0 : 10 + 3 + Draw.textWidth("WCC") + 6;
+        for (int i = 0; i < 4; i++) tabW[i] = Draw.textWidth(TAB_LABELS[i]) + BTN_PAD * 2;
         cancelW = Draw.textWidth("Cancel") + BTN_PAD * 2;
         doneW = Draw.textWidth("Done") + BTN_PAD * 2;
-        width += 6 + cancelW + GAP + doneW + PAD;
-        w = width;
-        x = (screenW - w) / 2;
+        w = measure(compact);
+        x = left;
         y = top;
-        int cx = x + PAD + brandW + 4;
+        int cx = x + PAD + (compact ? 0 : brandW + 4);
         for (int i = 0; i < 4; i++) {
             tabX[i] = cx;
             cx += tabW[i] + GAP;
@@ -59,13 +66,15 @@ public class TopBar extends Widget {
         Draw.rect(ctx, x, y, w, h, t.surface());
         Draw.border(ctx, x, y, w, h, 1, UiTheme.alpha(t.accent(), 90));
 
-        Draw.push(ctx);
-        Draw.translate(ctx, x + PAD + 1, y + 5);
-        Draw.scale(ctx, 0.625f);
-        ctx.drawItem(ICON, 0, 0);
-        Draw.pop(ctx);
-        Draw.text(ctx, "WCC", x + PAD + 14, y + 6, t.text());
-        Draw.rect(ctx, x + PAD + brandW, y + 4, 1, h - 8, t.line());
+        if (!compact) {
+            Draw.push(ctx);
+            Draw.translate(ctx, x + PAD + 1, y + 5);
+            Draw.scale(ctx, 0.625f);
+            ctx.drawItem(ICON, 0, 0);
+            Draw.pop(ctx);
+            Draw.text(ctx, "WCC", x + PAD + 14, y + 6, t.text());
+            Draw.rect(ctx, x + PAD + brandW, y + 4, 1, h - 8, t.line());
+        }
 
         EditorScreen.Tab cur = active.get();
         for (int i = 0; i < 4; i++) {

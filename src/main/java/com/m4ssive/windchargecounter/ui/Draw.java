@@ -44,6 +44,16 @@ public final class Draw {
         for (int i = 0; i < size; i++) rect(ctx, cx - i, y - i, 2 * i + 1, 1, argb);
     }
 
+    /** Triangle pointing left, tip at (x, cy). */
+    public static void caretLeft(DrawContext ctx, int x, int cy, int size, int argb) {
+        for (int i = 0; i < size; i++) rect(ctx, x + i, cy - i, 1, 2 * i + 1, argb);
+    }
+
+    /** Triangle pointing right, tip at (x, cy). */
+    public static void caretRight(DrawContext ctx, int x, int cy, int size, int argb) {
+        for (int i = 0; i < size; i++) rect(ctx, x - i, cy - i, 1, 2 * i + 1, argb);
+    }
+
     public static void text(DrawContext ctx, String s, int x, int y, int argb) {
         ctx.drawTextWithShadow(font(), s, x, y, argb);
     }

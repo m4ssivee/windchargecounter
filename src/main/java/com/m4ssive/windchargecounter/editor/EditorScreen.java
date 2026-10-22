@@ -5,6 +5,7 @@ import com.m4ssive.windchargecounter.config.ModConfig;
 import com.m4ssive.windchargecounter.editor.layout.PopoverPlacement;
 import com.m4ssive.windchargecounter.editor.layout.SnapResult;
 import com.m4ssive.windchargecounter.editor.layout.Snapping;
+import com.m4ssive.windchargecounter.editor.layout.TopBarPlacement;
 import com.m4ssive.windchargecounter.editor.tabs.CounterTab;
 import com.m4ssive.windchargecounter.editor.tabs.LayoutTab;
 import com.m4ssive.windchargecounter.editor.tabs.NametagTab;
@@ -117,7 +118,14 @@ public class EditorScreen extends Screen {
 
     @Override
     protected void init() {
-        topBar.layout(this.width, 9);
+        layoutTopBar();
+    }
+
+    /** Keeps the tab bar off the HUD (re-run every frame because the HUD can move). */
+    private void layoutTopBar() {
+        int full = topBar.measure(false), compact = topBar.measure(true);
+        int[] r = TopBarPlacement.place(full, compact, topBar.h, this.width, this.height, hud.bounds());
+        topBar.setPosition(r[0], r[1], r[2] == 1);
     }
 
     @Override
@@ -154,6 +162,8 @@ public class EditorScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        // outside a world (Mod Menu on the title screen) draw the normal menu background first
+        if (this.client == null || this.client.world == null) super.renderBackground(ctx, mouseX, mouseY, delta);
         ctx.fill(0, 0, this.width, this.height, DIM);
     }
 
@@ -169,14 +179,21 @@ public class EditorScreen extends Screen {
             if (guideY != null) Draw.dashedH(ctx, Math.min(guideY, this.height - 1), 0, this.width, g);
         }
 
-        toolbar.layout(hud.bounds(), this.width, this.height);
+        int[] hb = hud.bounds();
+        toolbar.layout(hb, this.width, this.height);
+        layoutTopBar();
         toolbar.render(ctx, mouseX, mouseY, t);
         topBar.render(ctx, mouseX, mouseY, t);
         renderHint(ctx, t);
         if (overlay != null) {
             int target = overlayTab == Tab.THEME ? toolbar.chipCenterX() : toolbar.moreCenterX();
-            overlay.place(PopoverPlacement.place(toolbar.x, toolbar.y, toolbar.y + toolbar.h,
-                overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target));
+            int[] group = {Math.min(hb[0], toolbar.x), Math.min(hb[1], toolbar.y),
+                Math.max(hb[0] + hb[2], toolbar.x + toolbar.w), Math.max(hb[1] + hb[3], toolbar.y + toolbar.h)};
+            boolean barOnTop = topBar.y < this.height / 2;
+            int minY = barOnTop ? topBar.y + topBar.h + POPOVER_GAP : 4;
+            int maxY = barOnTop ? this.height - 4 : topBar.y - POPOVER_GAP;
+            overlay.place(PopoverPlacement.place(toolbar.x, toolbar.y, toolbar.y + toolbar.h, group,
+                overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target, minY, maxY));
             overlay.render(ctx, mouseX, mouseY, t);
         }
         if (picker != null) picker.render(ctx, mouseX, mouseY, t);
@@ -203,8 +220,8 @@ public class EditorScreen extends Screen {
                 closeOverlay(); // click outside closes the popover
             }
         }
-        if (toolbar.mouseClicked(mx, my, button)) return true;
         if (topBar.mouseClicked(mx, my, button)) return true;
+        if (toolbar.mouseClicked(mx, my, button)) return true;
 
         int[] b = hud.bounds();
         if (button == 0 && mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3]) {

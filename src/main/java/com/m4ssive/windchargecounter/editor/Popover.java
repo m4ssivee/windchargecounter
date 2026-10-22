@@ -51,10 +51,11 @@ public class Popover extends Widget {
         int border = UiTheme.alpha(t.accent(), 130);
         Draw.rect(ctx, x, y, w, h, t.surface());
         Draw.border(ctx, x, y, w, h, 1, border);
-        if (placement.above()) {
-            Draw.caretDown(ctx, placement.caretX(), y + h + CARET - 1, CARET, border);
-        } else {
-            Draw.caretUp(ctx, placement.caretX(), y - CARET, CARET, border);
+        switch (placement.side()) {
+            case ABOVE -> Draw.caretDown(ctx, placement.caret(), y + h + CARET - 1, CARET, border);
+            case BELOW -> Draw.caretUp(ctx, placement.caret(), y - CARET, CARET, border);
+            case LEFT -> Draw.caretRight(ctx, x + w + CARET - 1, placement.caret(), CARET, border);
+            case RIGHT -> Draw.caretLeft(ctx, x - CARET, placement.caret(), CARET, border);
         }
         Draw.text(ctx, title, x + PAD, y + PAD, t.text());
         if (headerAction != null) headerAction.render(ctx, mx, my, t);

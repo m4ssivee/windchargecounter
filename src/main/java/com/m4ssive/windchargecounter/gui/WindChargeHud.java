@@ -47,7 +47,8 @@ public class WindChargeHud {
     /** Draws the HUD. {@code editing} adds the selection outline and preview rows when there is no data. */
     public void render(DrawContext ctx, boolean editing) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.world == null) return;
+        // the editor can be opened from Mod Menu on the title screen: preview rows need no world
+        if (!editing && (client.player == null || client.world == null)) return;
         if (!config.enableHud && !editing) return;
 
         List<Row> rows = rows(client, editing);
