@@ -8,6 +8,7 @@ import com.m4ssive.windchargecounter.editor.layout.Snapping;
 import com.m4ssive.windchargecounter.editor.tabs.CounterTab;
 import com.m4ssive.windchargecounter.editor.tabs.LayoutTab;
 import com.m4ssive.windchargecounter.editor.tabs.NametagTab;
+import com.m4ssive.windchargecounter.editor.tabs.ThemeTab;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
 import com.m4ssive.windchargecounter.ui.Draw;
 import com.m4ssive.windchargecounter.ui.UiTheme;
@@ -16,6 +17,9 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 /**
  * The one WCC editor: game stays visible, HUD is edited in place, settings live in popovers.
@@ -39,6 +43,8 @@ public class EditorScreen extends Screen {
     /** Open popover on top of everything, null when closed. */
     private Popover overlay;
     private Tab overlayTab;
+    /** Color picker opened from the Theme popover; drawn above everything. */
+    private ColorPicker picker;
     private final Toolbar toolbar;
 
     private boolean dragging;
@@ -89,6 +95,13 @@ public class EditorScreen extends Screen {
     public void closeOverlay() {
         overlay = null;
         overlayTab = null;
+        picker = null;
+    }
+
+    /** Opens the color picker at (x, y) for one color field. */
+    public void openPicker(int x, int y, IntSupplier get, IntConsumer set) {
+        picker = new ColorPicker(get, set);
+        picker.placeNear(x, y, this.width, this.height);
     }
 
     protected Popover createPopover(Tab tab) {
@@ -96,7 +109,7 @@ public class EditorScreen extends Screen {
             case LAYOUT -> LayoutTab.create(config, this);
             case COUNTER -> CounterTab.create(config, this);
             case NAMETAG -> NametagTab.create(config, this);
-            case THEME -> null;
+            case THEME -> ThemeTab.create(config, this);
         };
     }
 
@@ -166,6 +179,7 @@ public class EditorScreen extends Screen {
                 overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target));
             overlay.render(ctx, mouseX, mouseY, t);
         }
+        if (picker != null) picker.render(ctx, mouseX, mouseY, t);
     }
 
     private void renderHint(DrawContext ctx, UiTheme t) {
@@ -179,6 +193,10 @@ public class EditorScreen extends Screen {
     // ------------------------------------------------------------------ internal input model
 
     private boolean onClick(double mx, double my, int button, boolean shift) {
+        if (picker != null) {
+            if (!picker.mouseClicked(mx, my, button)) picker = null; // outside: close the picker only
+            return true;
+        }
         if (overlay != null) {
             if (overlay.mouseClicked(mx, my, button)) return true;
             if (!overlay.contains(mx, my) && !toolbar.contains(mx, my)) {
@@ -238,6 +256,14 @@ public class EditorScreen extends Screen {
     }
 
     private boolean onKey(int key, int mods, boolean editorKey) {
+        if (picker != null) {
+            if (picker.keyPressed(key, mods)) return true;
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                picker = null;
+                return true;
+            }
+            if (picker.isTyping()) return true; // don't trigger the editor key while typing hex
+        }
         if (overlay != null && overlay.keyPressed(key, mods)) return true;
         if (key == GLFW.GLFW_KEY_ESCAPE || editorKey) {
             done();
@@ -260,6 +286,7 @@ public class EditorScreen extends Screen {
     }
 
     private boolean onChar(String chars) {
+        if (picker != null && picker.charTyped(chars)) return true;
         return overlay != null && overlay.charTyped(chars);
     }
 
