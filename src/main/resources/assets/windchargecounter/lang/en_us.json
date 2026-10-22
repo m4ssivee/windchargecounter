@@ -1,5 +1,5 @@
 {
-  "key.windchargecounter.toggleedit": "Edit HUD Position",
+  "key.windchargecounter.toggleedit": "Open WCC Editor",
   "category.windchargecounter": "WindCharge Counter",
   "key.category.windchargecounter.main": "WindCharge Counter"
 }

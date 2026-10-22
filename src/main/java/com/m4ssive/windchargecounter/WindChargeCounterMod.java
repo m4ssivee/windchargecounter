@@ -3,7 +3,7 @@ package com.m4ssive.windchargecounter;
 import com.m4ssive.m4lib.M4Lib;
 import com.m4ssive.m4lib.NametagRenderer;
 import com.m4ssive.windchargecounter.config.ModConfig;
-import com.m4ssive.windchargecounter.gui.EditModeScreen;
+import com.m4ssive.windchargecounter.editor.EditorScreen;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
 import com.m4ssive.windchargecounter.nametag.NametagSuffix;
 import net.fabricmc.api.ClientModInitializer;
@@ -59,6 +59,12 @@ public class WindChargeCounterMod implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommandManager.literal("wcc")
+                .executes(context -> {
+                    // open on the next tick, after the chat screen has closed
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    mc.send(() -> mc.setScreen(new EditorScreen(null)));
+                    return 1;
+                })
                 .then(ClientCommandManager.literal("version").executes(context -> {
                     String v = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(MOD_ID)
                         .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
@@ -80,7 +86,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
             }
         });
 
-        // m4lib kendi entrypoint'ini bizden sonra çalıştırabilir; hazır olana kadar her tick dene
+        // m4lib may initialize after us; retry every tick until it is ready
         tryRegisterNametagSuffix();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -93,7 +99,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
 
             while (toggleEditModeKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.setScreen(new EditModeScreen());
+                    client.setScreen(new EditorScreen(null));
                 }
             }
         });

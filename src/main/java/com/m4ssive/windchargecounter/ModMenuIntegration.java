@@ -7,6 +7,6 @@ public class ModMenuIntegration implements ModMenuApi {
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return com.m4ssive.windchargecounter.gui.ConfigScreen::new;
+        return com.m4ssive.windchargecounter.editor.EditorScreen::new;
     }
 }
