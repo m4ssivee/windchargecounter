@@ -16,9 +16,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -119,7 +117,7 @@ public class WindChargeCounterMod implements ClientModInitializer {
             m4LibRegistered = true;
             LOGGER.info("[WCC] Nametag suffix registered with m4lib");
         } catch (Throwable t) {
-            m4LibRegistered = true; // tekrar tekrar log basmasın
+            m4LibRegistered = true; // don't retry and spam the log
             LOGGER.error("[WCC] Failed to register nametag suffix with m4lib", t);
         }
     }

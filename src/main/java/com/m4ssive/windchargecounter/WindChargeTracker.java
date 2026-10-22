@@ -11,15 +11,15 @@ import java.util.*;
 public class WindChargeTracker {
     public static final int MAX_WIND_CHARGES = 128;
 
-    // envanter tek tickte bu kadar artarsa ve 128'e ulaşırsa yeni raunt sayılır
+    // a jump this big in one tick that reaches 128 means a new round (kit refill)
     private static final int REFILL_JUMP_THRESHOLD = 16;
-    // aynı mermi entity'si render mesafesinden çıkıp tekrar girerse ikinci kez sayılmasın
+    // a projectile that leaves render distance and comes back must not be counted twice
     private static final int MAX_SEEN_PROJECTILES = 512;
 
-    /** HUD'da gösterim için rakip bilgisi. */
+    /** Opponent data shown on the HUD. */
     public record Opponent(UUID uuid, String name, int remaining, long lastUse) {}
 
-    // LinkedHashMap: rakipler ilk görüldükleri sırada listelenir, HUD satırları zıplamaz
+    // LinkedHashMap: opponents stay in first-seen order so HUD rows don't jump around
     private final Map<UUID, Integer> windChargesUsed = new LinkedHashMap<>();
     private final Map<UUID, String> opponentNames = new HashMap<>();
     private final Map<UUID, Long> lastUseTime = new HashMap<>();
@@ -41,7 +41,7 @@ public class WindChargeTracker {
             }
         }
 
-        // envanter 128'e geri dolduysa yeni raunt başlamış demektir (0'dan dolma dahil)
+        // inventory refilled to 128 → a new round started (also when refilling from 0)
         if (hasLocalSample
                 && count >= MAX_WIND_CHARGES
                 && localPlayerCount < MAX_WIND_CHARGES
@@ -58,12 +58,12 @@ public class WindChargeTracker {
     }
 
     /**
-     * Dünya değişikliği, ölüm/respawn ve ölen rakipler için reset kontrolü.
+     * Resets on world change, on death/respawn, and for opponents that died.
      */
     public void checkDuelReset(PlayerEntity localPlayer, ClientWorld world, boolean resetOnDeath) {
         if (localPlayer == null) return;
 
-        // yeni sunucu / yeni dünya / boyut değişimi -> her zaman yeni bir ClientWorld örneği oluşur
+        // new server / new world / dimension change always creates a new ClientWorld instance
         if (world != lastWorld) {
             if (lastWorld != null) {
                 WindChargeCounterMod.LOGGER.info("[WCC] World changed, resetting counters.");
@@ -84,7 +84,7 @@ public class WindChargeTracker {
             }
         }
 
-        // ölen rakiplerin sayacını temizle
+        // clear the counters of opponents that died
         if (resetOnDeath && world != null && !windChargesUsed.isEmpty()) {
             for (AbstractClientPlayerEntity player : world.getPlayers()) {
                 if (player != localPlayer && player.isDead()) {
@@ -95,9 +95,9 @@ public class WindChargeTracker {
     }
 
     /**
-     * Bir rakibin attığı wind charge'ı kaydeder.
+     * Records a wind charge thrown by an opponent.
      *
-     * @param projectileUuid mermi entity'sinin UUID'si; aynı mermi iki kez sayılmaz
+     * @param projectileUuid UUID of the projectile entity; the same projectile is never counted twice
      */
     public void recordWindChargeUse(PlayerEntity player, UUID projectileUuid) {
         if (projectileUuid != null) {
@@ -136,7 +136,7 @@ public class WindChargeTracker {
         return MAX_WIND_CHARGES - getWindChargesUsed(playerId);
     }
 
-    /** Takip edilen rakipler, ilk görülme sırasına göre. Render mesafesinden çıkanlar da dahil. */
+    /** Tracked opponents in first-seen order, including those out of render distance. */
     public List<Opponent> getOpponents() {
         List<Opponent> list = new ArrayList<>(windChargesUsed.size());
         for (Map.Entry<UUID, Integer> e : windChargesUsed.entrySet()) {
@@ -161,7 +161,7 @@ public class WindChargeTracker {
         lastUseTime.remove(playerId);
     }
 
-    /** Rakip sayaçlarını sıfırlar. Kendi sayımız envanterden okunduğu için dokunulmaz. */
+    /** Resets opponent counters. Our own count is read from the inventory, so it is not touched. */
     public void clearAll() {
         windChargesUsed.clear();
         opponentNames.clear();

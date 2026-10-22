@@ -128,7 +128,7 @@ public final class ThemeTab {
             int cw = cellW();
             int i = Math.max(0, Math.min(names.length - 1, (int) ((mx - x) / (cw + GAP))));
             IntConsumer set = setters[i];
-            screen.openPicker(x + i * (cw + GAP), y + h + 2, getters[i], v -> {
+            screen.openPicker(this, i * (cw + GAP), h + 2, getters[i], v -> {
                 set.accept(v);
                 cfg.markCustom();
             });

@@ -13,6 +13,7 @@ import com.m4ssive.windchargecounter.editor.tabs.ThemeTab;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
 import com.m4ssive.windchargecounter.ui.Draw;
 import com.m4ssive.windchargecounter.ui.UiTheme;
+import com.m4ssive.windchargecounter.ui.Widget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
@@ -99,10 +100,16 @@ public class EditorScreen extends Screen {
         picker = null;
     }
 
-    /** Opens the color picker at (x, y) for one color field. */
-    public void openPicker(int x, int y, IntSupplier get, IntConsumer set) {
+    private Widget pickerAnchor;
+    private int pickerDx, pickerDy;
+
+    /** Opens the color picker next to a point inside {@code anchor}; it follows the anchor when it moves. */
+    public void openPicker(Widget anchor, int dx, int dy, IntSupplier get, IntConsumer set) {
         picker = new ColorPicker(get, set);
-        picker.placeNear(x, y, this.width, this.height);
+        pickerAnchor = anchor;
+        pickerDx = dx;
+        pickerDy = dy;
+        picker.placeNear(anchor.x + dx, anchor.y + dy, this.width, this.height);
     }
 
     protected Popover createPopover(Tab tab) {
@@ -138,15 +145,25 @@ public class EditorScreen extends Screen {
         return false; // Esc is handled as "Done"
     }
 
+    private boolean finished;
+
     private void done() {
+        finished = true;
         config.save();
         returnToParent();
     }
 
     private void cancel() {
+        finished = true;
         config.copyFrom(snapshot);
         config.save();
         returnToParent();
+    }
+
+    @Override
+    public void removed() {
+        // replaced by another screen (disconnect, death screen...): keep what was edited
+        if (!finished) config.save();
     }
 
     private void returnToParent() {
@@ -160,8 +177,16 @@ public class EditorScreen extends Screen {
 
     // ------------------------------------------------------------------ render
 
+    /**
+     * Newer versions call renderBackground before render(), older ones don't; the menu background blurs,
+     * and blurring twice in one frame crashes. So it is drawn at most once per frame.
+     */
+    private boolean backgroundDrawn;
+
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        if (backgroundDrawn) return;
+        backgroundDrawn = true;
         // outside a world (Mod Menu on the title screen) draw the normal menu background first
         if (this.client == null || this.client.world == null) super.renderBackground(ctx, mouseX, mouseY, delta);
         ctx.fill(0, 0, this.width, this.height, DIM);
@@ -171,6 +196,7 @@ public class EditorScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         UiTheme t = UiTheme.from(config);
         renderBackground(ctx, mouseX, mouseY, delta);
+        backgroundDrawn = false; // next frame may draw it again
         hud.render(ctx, true);
 
         if (dragging) {
@@ -196,7 +222,10 @@ public class EditorScreen extends Screen {
                 overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target, minY, maxY));
             overlay.render(ctx, mouseX, mouseY, t);
         }
-        if (picker != null) picker.render(ctx, mouseX, mouseY, t);
+        if (picker != null) {
+            picker.placeNear(pickerAnchor.x + pickerDx, pickerAnchor.y + pickerDy, this.width, this.height);
+            picker.render(ctx, mouseX, mouseY, t);
+        }
     }
 
     private void renderHint(DrawContext ctx, UiTheme t) {
@@ -211,8 +240,8 @@ public class EditorScreen extends Screen {
 
     private boolean onClick(double mx, double my, int button, boolean shift) {
         if (picker != null) {
-            if (!picker.mouseClicked(mx, my, button)) picker = null; // outside: close the picker only
-            return true;
+            if (picker.mouseClicked(mx, my, button)) return true;
+            picker = null; // outside: close the picker, then let the click do its normal job
         }
         if (overlay != null) {
             if (overlay.mouseClicked(mx, my, button)) return true;
@@ -274,7 +303,11 @@ public class EditorScreen extends Screen {
 
     private boolean onKey(int key, int mods, boolean editorKey) {
         if (picker != null) {
-            if (picker.keyPressed(key, mods)) return true;
+            if (picker.keyPressed(key, mods)) {
+                boolean enter = key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
+                if (enter && !picker.isTyping()) picker = null; // committed: close
+                return true;
+            }
             if (key == GLFW.GLFW_KEY_ESCAPE) {
                 picker = null;
                 return true;
@@ -282,6 +315,10 @@ public class EditorScreen extends Screen {
             if (picker.isTyping()) return true; // don't trigger the editor key while typing hex
         }
         if (overlay != null && overlay.keyPressed(key, mods)) return true;
+        if (key == GLFW.GLFW_KEY_ESCAPE && overlay != null) {
+            closeOverlay();
+            return true;
+        }
         if (key == GLFW.GLFW_KEY_ESCAPE || editorKey) {
             done();
             return true;

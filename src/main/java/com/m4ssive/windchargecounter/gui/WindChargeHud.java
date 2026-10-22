@@ -75,7 +75,18 @@ public class WindChargeHud {
         drawPanel(ctx, tr, rows, width, height, rowH);
         Draw.pop(ctx);
 
-        if (editing) drawSelection(ctx);
+        if (editing) {
+            if (!config.enableHud) drawHiddenBadge(ctx, tr);
+            drawSelection(ctx);
+        }
+    }
+
+    /** In the editor a hidden HUD stays editable but is dimmed and labelled. */
+    private void drawHiddenBadge(DrawContext ctx, TextRenderer tr) {
+        ctx.fill(lastX, lastY, lastX + lastW, lastY + lastH, 0xB00A1020);
+        String s = "HUD off";
+        int tx = lastX + (lastW - tr.getWidth(s)) / 2, ty = lastY + (lastH - 8) / 2;
+        ctx.drawTextWithShadow(tr, s, tx, ty, 0xFFFF8A8A);
     }
 
     /** {x, y, w, h} of the last drawn panel in screen pixels. */
@@ -195,7 +206,7 @@ public class WindChargeHud {
         }
         if (editing && rows.isEmpty()) {
             long now = System.currentTimeMillis();
-            rows.add(new Row("You", 112, true, true, 0));
+            if (config.showSelf) rows.add(new Row("You", 112, true, true, 0));
             rows.add(new Row("Enemy", 74, false, true, now - (now % 2000))); // shows the flash
             rows.add(new Row("FarAway", 23, false, false, 0));
         }

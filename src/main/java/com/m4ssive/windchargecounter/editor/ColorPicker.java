@@ -77,6 +77,7 @@ public class ColorPicker extends Widget {
         for (int i = 0; i < PALETTE.size(); i++) {
             int cx = x + PAD + (i % COLS) * (CELL + GAP), cy = y + PAD + (i / COLS) * (CELL + GAP);
             if (mx >= cx && mx < cx + CELL && my >= cy && my < cy + CELL) {
+                hex.cancel();
                 set.accept(PALETTE.get(i));
                 return true;
             }
