@@ -2,8 +2,8 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
-![Minecraft](https://img.shields.io/badge/minecraft-1.21%20%7C%201.21.1-green.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![Minecraft](https://img.shields.io/badge/minecraft-1.21%E2%80%931.21.11-green.svg)
 ![Fabric](https://img.shields.io/badge/mod%20loader-fabric-1976d2?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjMTk3NkQyIi8+Cjwvc3ZnPg==)
 ![Java](https://img.shields.io/badge/java-21-orange.svg)
 
@@ -19,12 +19,13 @@ This mod helps players maintain better situational awareness without having to m
 
 ## Features
 
-- **Interactive HUD:** Displays a sleek, customizable tracker on your screen showing the remaining wind charges.
-- **Edit Mode:** Press `K` in-game to enter Edit Mode. You can freely drag the HUD anywhere on your screen and use the corner handles to resize it to your preference.
-- **Nametag Integration:** The wind charge count is seamlessly integrated into player nametags, so you can easily see an opponent's status during fast-paced combat.
+- **Themed HUD:** A compact panel with a row per player, a progress bar and a flash when someone throws. Opponents stay listed (dimmed) when they leave render distance.
+- **WCC Editor:** Press `K` (rebindable), type `/wcc`, or use Mod Menu to open one editor for everything. Drag the HUD with edge/center snapping, scroll to resize, nudge with the arrow keys, and change every setting from a floating toolbar attached to the HUD. `Esc`/`Done` saves, `Cancel` reverts.
+- **Themes:** Five presets (Wind, Breeze, Night, Ember, Mono) plus custom Accent / Text / Panel colors, Low / Half / Full count colors (palette or hex) and panel opacity.
+- **Nametag Integration:** `Enemy | ◉ 74` suffix with a pixel wind-charge icon. Counts turn red with a `!` when an opponent is low (threshold configurable). Separator, icon, `/128` and own-nametag display are configurable.
 - **Automatic Match Tracking:** The mod automatically detects when a new round starts (e.g., when an inventory refill occurs) and resets the counters accordingly.
-- **Manual Reset Command:** You can use `/wcc reset` to clear and reset the tracking data manually at any time.
-- **Extensive Customization:** Full support for `ModMenu`, allowing you to tweak visual preferences easily from the configuration menu.
+- **Commands:** `/wcc` opens the editor, `/wcc reset` clears the counters, `/wcc version` prints the installed version.
+- **Every 1.21 version:** Separate builds for Minecraft 1.21 through 1.21.11.
 
 ## Important Information
 
@@ -33,10 +34,10 @@ This mod helps players maintain better situational awareness without having to m
 ## Installation Requirements
 
 1. Download the latest release.
-2. Install [Fabric Loader](https://fabricmc.net/use/) (for Minecraft 1.21 / 1.21.1) and the [Fabric API](https://modrinth.com/mod/fabric-api).
+2. Install [Fabric Loader](https://fabricmc.net/use/) (Minecraft 1.21 – 1.21.11; pick the jar matching your game version) and the [Fabric API](https://modrinth.com/mod/fabric-api).
 3. **Required Dependency:** You must install [m4lib](https://github.com/m4ssivee/m4lib) for the mod to work.
 4. Place the `.jar` files into your `.minecraft/mods` folder.
-5. *(Optional but recommended)* Install [Mod Menu](https://modrinth.com/mod/modmenu) to access the configuration screen.
+5. *(Optional but recommended)* Install [Mod Menu](https://modrinth.com/mod/modmenu) as another way to open the editor.
 
 ## Building from source
 
@@ -46,9 +47,11 @@ Requirements:
 ```bash
 git clone https://github.com/m4ssivee/windchargecounter.git
 cd windchargecounter
-./gradlew build
+# m4lib must be in mavenLocal first (clone m4lib, then: ./gradlew publishToMavenLocal)
+./gradlew build                                   # all versions
+MC_ONLY=1.21.11 ./gradlew :1.21.11:build          # one version
 ```
-The compiled jar will be located in `build/libs/`.
+Each version's jar is in `versions/<minecraft version>/build/libs/`.
 
 ---
 
