@@ -24,6 +24,13 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_version")}")
     modImplementation("com.m4ssive:m4lib:${property("m4lib_version")}+$mcVersion")
     modCompileOnly("com.terraformersmc:modmenu:${property("modmenu_version")}")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 loom {
