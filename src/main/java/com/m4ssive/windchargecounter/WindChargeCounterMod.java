@@ -5,6 +5,7 @@ import com.m4ssive.m4lib.NametagRenderer;
 import com.m4ssive.windchargecounter.config.ModConfig;
 import com.m4ssive.windchargecounter.gui.EditModeScreen;
 import com.m4ssive.windchargecounter.gui.WindChargeHud;
+import com.m4ssive.windchargecounter.nametag.NametagSuffix;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -124,15 +125,13 @@ public class WindChargeCounterMod implements ClientModInitializer {
             if (client.player == null) return null;
 
             boolean isSelf = player.getUuid().equals(client.player.getUuid());
-            final int remaining = isSelf
+            if (isSelf && !config.nametagOwn) return null;
+            int remaining = isSelf
                 ? tracker.getLocalPlayerCharges()
                 : tracker.getOpponentRemainingCharges(player.getUuid());
             if (isSelf && remaining <= 0) return null;
 
-            MutableText suffix = Text.literal(" | ").formatted(Formatting.GRAY);
-            MutableText counter = Text.literal("⬡ " + remaining)
-                .styled(s -> s.withColor(TextColor.fromRgb(WindChargeHud.getChargeColor(remaining) & 0xFFFFFF)));
-            return suffix.append(counter);
+            return NametagSuffix.build(remaining, config);
         } catch (Exception e) {
             LOGGER.error("[WCC] Error creating nametag suffix", e);
             return null;
