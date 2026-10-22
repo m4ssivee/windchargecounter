@@ -210,8 +210,9 @@ public class EditorScreen extends Screen {
         layoutTopBar();
         toolbar.render(ctx, mouseX, mouseY, t);
         topBar.render(ctx, mouseX, mouseY, t);
-        renderHint(ctx, t);
+        if (overlay == null && picker == null) renderHint(ctx, t);
         if (overlay != null) {
+            Draw.flush(ctx);
             int target = overlayTab == Tab.THEME ? toolbar.chipCenterX() : toolbar.moreCenterX();
             int[] group = {Math.min(hb[0], toolbar.x), Math.min(hb[1], toolbar.y),
                 Math.max(hb[0] + hb[2], toolbar.x + toolbar.w), Math.max(hb[1] + hb[3], toolbar.y + toolbar.h)};
@@ -223,6 +224,7 @@ public class EditorScreen extends Screen {
             overlay.render(ctx, mouseX, mouseY, t);
         }
         if (picker != null) {
+            Draw.flush(ctx);
             picker.placeNear(pickerAnchor.x + pickerDx, pickerAnchor.y + pickerDy, this.width, this.height);
             picker.render(ctx, mouseX, mouseY, t);
         }

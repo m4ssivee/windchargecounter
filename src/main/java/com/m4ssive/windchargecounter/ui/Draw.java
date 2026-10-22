@@ -75,6 +75,16 @@ public final class Draw {
         return font().getWidth(s);
     }
 
+    /**
+     * Ends the current layer so later fills cover earlier text. Before 1.21.6 text is batched and drawn
+     * last, so without this a popover would show the text underneath it; 1.21.6+ keeps draw order itself.
+     */
+    public static void flush(DrawContext ctx) {
+        //? if <1.21.6 {
+        ctx.draw();
+        //?}
+    }
+
     // matrix stack: MatrixStack before 1.21.6, Matrix3x2fStack from 1.21.6
     public static void push(DrawContext ctx) {
         //? if >=1.21.6 {
