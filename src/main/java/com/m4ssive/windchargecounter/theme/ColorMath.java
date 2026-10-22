@@ -40,4 +40,24 @@ public final class ColorMath {
     public static String toHex(int rgb) {
         return String.format("%06X", rgb & 0xFFFFFF);
     }
+
+    /** WCAG contrast ratio between two RGB colors (1..21). */
+    public static double contrast(int a, int b) {
+        double la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    /** rgb when it has at least 3:1 contrast on the background, otherwise the fallback. */
+    public static int readableOn(int rgb, int background, int fallback) {
+        return contrast(rgb, background) >= 3.0 ? rgb & 0xFFFFFF : fallback & 0xFFFFFF;
+    }
+
+    private static double luminance(int rgb) {
+        return 0.2126 * channel((rgb >> 16) & 0xFF) + 0.7152 * channel((rgb >> 8) & 0xFF) + 0.0722 * channel(rgb & 0xFF);
+    }
+
+    private static double channel(int c) {
+        double v = c / 255.0;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
 }

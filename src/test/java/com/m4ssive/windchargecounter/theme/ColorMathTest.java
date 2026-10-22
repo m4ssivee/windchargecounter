@@ -47,4 +47,18 @@ class ColorMathTest {
         assertEquals("0B0F17", ColorMath.toHex(0x0B0F17));
         assertEquals("B8A6FF", ColorMath.toHex(0xFFB8A6FF));
     }
+
+    @Test
+    void contrastRatioBlackOnWhiteIs21() {
+        assertEquals(21.0, ColorMath.contrast(0x000000, 0xFFFFFF), 0.01);
+        assertEquals(1.0, ColorMath.contrast(0x123456, 0x123456), 0.01);
+    }
+
+    @Test
+    void readableOnDarkFallsBackForDarkColors() {
+        int surface = 0x0D0E22, fallback = 0xEAF2FF;
+        assertEquals(fallback, ColorMath.readableOn(0x000000, surface, fallback));
+        assertEquals(fallback, ColorMath.readableOn(0x1A0F0A, surface, fallback));
+        assertEquals(0x8BE9FF, ColorMath.readableOn(0x8BE9FF, surface, fallback));
+    }
 }
