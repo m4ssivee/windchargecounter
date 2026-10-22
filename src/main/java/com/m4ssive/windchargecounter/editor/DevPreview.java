@@ -22,6 +22,7 @@ public final class DevPreview {
         String[] steps = spec.split(",");
         boolean title = steps[0].trim().equals("TITLE");
         if (!title && client.player == null) return;
+        if (title && step < 0 && !(client.currentScreen instanceof net.minecraft.client.gui.screen.TitleScreen)) return;
         ticks++;
         if (ticks < START_TICK || (ticks - START_TICK) % TICKS_PER_STEP != 0) return;
         step++;

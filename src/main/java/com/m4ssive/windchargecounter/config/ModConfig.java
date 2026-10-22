@@ -13,6 +13,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Set;
 
 public class ModConfig {
@@ -131,6 +132,11 @@ public class ModConfig {
             save();
             return;
         }
+        loadFrom(path);
+    }
+
+    /** Loads a config file. An unreadable file is copied to *.bak and defaults are kept. */
+    public void loadFrom(Path path) {
         try (Reader reader = Files.newBufferedReader(path)) {
             JsonObject raw = JsonParser.parseReader(reader).getAsJsonObject();
             ModConfig loaded = GSON.fromJson(raw, ModConfig.class);
@@ -139,21 +145,38 @@ public class ModConfig {
                 copyFrom(loaded);
             }
         } catch (Exception e) {
-            WindChargeCounterMod.LOGGER.error("Config load error, using defaults", e);
+            log("Config file is unreadable, using defaults (old file kept as .bak)", e);
+            try {
+                Files.copy(path, path.resolveSibling(path.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception copyError) {
+                log("Could not back up the unreadable config", copyError);
+            }
         }
         sanitize();
     }
 
     public void save() {
+        saveTo(path());
+    }
+
+    public void saveTo(Path path) {
         sanitize();
         try {
-            Path path = path();
-            Files.createDirectories(path.getParent());
+            if (path.getParent() != null) Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(this, writer);
             }
         } catch (Exception e) {
-            WindChargeCounterMod.LOGGER.error("Config save error", e);
+            log("Config save error", e);
+        }
+    }
+
+    // the mod's logger is not initialised in unit tests
+    private static void log(String msg, Exception e) {
+        try {
+            WindChargeCounterMod.LOGGER.error(msg, e);
+        } catch (Throwable ignored) {
+            System.err.println("[WCC] " + msg + ": " + e);
         }
     }
 }
