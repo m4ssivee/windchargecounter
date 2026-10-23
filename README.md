@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)
 ![Minecraft](https://img.shields.io/badge/minecraft-1.21%E2%80%931.21.11-green.svg)
 ![Fabric](https://img.shields.io/badge/mod%20loader-fabric-1976d2?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjMTk3NkQyIi8+Cjwvc3ZnPg==)
 ![Java](https://img.shields.io/badge/java-21-orange.svg)
@@ -20,7 +20,7 @@ This mod helps players maintain better situational awareness without having to m
 ## Features
 
 - **Themed HUD:** A compact panel with a row per player, a progress bar and a flash when someone throws. Opponents stay listed (dimmed) when they leave render distance.
-- **WCC Editor:** Press `K` (rebindable), type `/wcc`, or use Mod Menu to open one editor for everything. Drag the HUD with edge/center snapping, scroll to resize, nudge with the arrow keys, and change every setting from a floating toolbar attached to the HUD. `Esc`/`Done` saves, `Cancel` reverts.
+- **WCC Editor:** Press `K` (rebindable), type `/wcc`, or use Mod Menu to open one editor for everything. Drag the HUD with edge/center snapping, scroll to resize, nudge with the arrow keys, and change every setting from the Layout / Counter / Nametag / Theme tabs. `Esc`/`Done` saves, `Cancel` reverts.
 - **Themes:** Five presets (Wind, Breeze, Night, Ember, Mono) plus custom Accent / Text / Panel colors, Low / Half / Full count colors (palette or hex) and panel opacity.
 - **Nametag Integration:** `Enemy | ◉ 74` suffix with a pixel wind-charge icon. Counts turn red with a `!` when an opponent is low (threshold configurable). Separator, icon, `/128` and own-nametag display are configurable.
 - **Automatic Match Tracking:** The mod automatically detects when a new round starts (e.g., when an inventory refill occurs) and resets the counters accordingly.

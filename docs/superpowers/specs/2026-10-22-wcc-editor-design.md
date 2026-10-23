@@ -1,6 +1,6 @@
 # WindChargeCounter — Editor & Theme Redesign
 
-Status: draft for approval · 2026-10-22
+Status: approved 2026-10-22 · revised 2026-10-23 (toolbar removed)
 Visual spec: the "WCC Ayar Ekranı Taslakları" canvas (claude.ai artifact). Artboards
 **D · Floating Toolbar** (`Toolbar.dc.html`) and **Nametag · Suffix** (`Nametags.dc.html`)
 are the reference; the other artboards are rejected alternatives.
@@ -190,3 +190,11 @@ panelOpacity (replaces backgroundOpacity, migrate the old value), snapToEdges, n
 Exact pixel metrics and spacing (follow the mockups), widget class structure, the curated
 palette for the color picker, popover animation (if any), how the hex field handles input on
 each version, and the internal input model.
+
+## 16. Revision 2026-10-23 (after the user's in-game test of 1.3.0)
+
+The user did not like the floating toolbar attached under the HUD (scale −/+ and theme shortcut):
+the same settings are already in the tabs. The toolbar is removed. Popovers now open from their tab in
+the tab bar (clicking the active tab again closes it) and slide sideways so they never cover the HUD.
+Scale is still changed with the scroll wheel over the HUD and with the Layout tab's slider.
+

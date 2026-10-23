@@ -47,7 +47,6 @@ public class EditorScreen extends Screen {
     private Tab overlayTab;
     /** Color picker opened from the Theme popover; drawn above everything. */
     private ColorPicker picker;
-    private final Toolbar toolbar;
 
     private boolean dragging;
     private boolean dragFree;
@@ -61,8 +60,7 @@ public class EditorScreen extends Screen {
         this.config = mod.getConfig();
         this.hud = mod.getHud();
         this.snapshot = config.copy();
-        this.topBar = new TopBar(() -> activeTab, this::openTab, this::cancel, this::done);
-        this.toolbar = new Toolbar(this, config);
+        this.topBar = new TopBar(() -> activeTab, this::togglePopover, this::cancel, this::done);
     }
 
     public ModConfig config() {
@@ -206,21 +204,18 @@ public class EditorScreen extends Screen {
         }
 
         int[] hb = hud.bounds();
-        toolbar.layout(hb, this.width, this.height);
         layoutTopBar();
-        toolbar.render(ctx, mouseX, mouseY, t);
         topBar.render(ctx, mouseX, mouseY, t);
         if (overlay == null && picker == null) renderHint(ctx, t);
         if (overlay != null) {
             Draw.flush(ctx);
-            int target = overlayTab == Tab.THEME ? toolbar.chipCenterX() : toolbar.moreCenterX();
-            int[] group = {Math.min(hb[0], toolbar.x), Math.min(hb[1], toolbar.y),
-                Math.max(hb[0] + hb[2], toolbar.x + toolbar.w), Math.max(hb[1] + hb[3], toolbar.y + toolbar.h)};
+            // opens from its tab, never over the HUD
+            int[] avoid = {hb[0] - 3, hb[1] - 3, hb[0] + hb[2] + 3, hb[1] + hb[3] + 3};
             boolean barOnTop = topBar.y < this.height / 2;
             int minY = barOnTop ? topBar.y + topBar.h + POPOVER_GAP : 4;
             int maxY = barOnTop ? this.height - 4 : topBar.y - POPOVER_GAP;
-            overlay.place(PopoverPlacement.place(toolbar.x, toolbar.y, toolbar.y + toolbar.h, group,
-                overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, target, minY, maxY));
+            overlay.place(PopoverPlacement.place(topBar.tabX(overlayTab), topBar.y, topBar.y + topBar.h, avoid,
+                overlay.w, overlay.h, this.width, this.height, POPOVER_GAP, topBar.tabCenterX(overlayTab), minY, maxY));
             overlay.render(ctx, mouseX, mouseY, t);
         }
         if (picker != null) {
@@ -247,12 +242,11 @@ public class EditorScreen extends Screen {
         }
         if (overlay != null) {
             if (overlay.mouseClicked(mx, my, button)) return true;
-            if (!overlay.contains(mx, my) && !toolbar.contains(mx, my)) {
-                closeOverlay(); // click outside closes the popover
+            if (!overlay.contains(mx, my) && !topBar.contains(mx, my)) {
+                closeOverlay(); // click outside closes the popover (a tab click toggles it instead)
             }
         }
         if (topBar.mouseClicked(mx, my, button)) return true;
-        if (toolbar.mouseClicked(mx, my, button)) return true;
 
         int[] b = hud.bounds();
         if (button == 0 && mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3]) {

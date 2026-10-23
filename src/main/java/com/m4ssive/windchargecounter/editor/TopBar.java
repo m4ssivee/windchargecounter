@@ -93,6 +93,14 @@ public class TopBar extends Widget {
         Draw.textFlat(ctx, "Done", doneX + BTN_PAD, y + 6, 0xFF0A1020);
     }
 
+    public int tabX(EditorScreen.Tab tab) {
+        return tabX[tab.ordinal()];
+    }
+
+    public int tabCenterX(EditorScreen.Tab tab) {
+        return tabX[tab.ordinal()] + tabW[tab.ordinal()] / 2;
+    }
+
     private boolean hit(double mx, double my, int bx, int bw) {
         return mx >= bx && mx < bx + bw && my >= y && my < y + h;
     }
