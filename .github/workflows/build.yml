@@ -43,6 +43,7 @@ jobs:
         with:
           name: WindChargeCounter-jars
           path: |
-            build/libs/*.jar
-            m4lib/build/libs/*.jar
+            versions/*/build/libs/*.jar
+            m4lib/versions/*/build/libs/*.jar
+            !**/*-sources.jar
           if-no-files-found: error
